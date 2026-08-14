@@ -1,0 +1,19 @@
+[Unit]
+Description=The Isle Evrima RCON Manager
+After=network.target theisle.service
+Wants=theisle.service
+
+[Service]
+Type=simple
+User=steam
+Group=steam
+WorkingDirectory=/home/steam/evrima-rcon
+EnvironmentFile=-/home/steam/evrima-rcon/.env
+ExecStart=/usr/bin/node /home/steam/evrima-rcon/dist/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Evrima Field Station</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="login-view" class="login-shell">
+      <div class="login-card">
+        <p class="eyebrow">The Isle · Evrima</p>
+        <h1>Field Station</h1>
+        <p class="lede">RCON admin panel. Kết nối local, không lộ port 8888.</p>
+        <form id="login-form">
+          <label>
+            Username
+            <input id="login-username" name="username" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">Enter station</button>
+          <p id="login-error" class="form-error" hidden></p>
+        </form>
+      </div>
+    </div>
+
+    <div id="app-view" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">EV</span>
+          <div>
+            <strong>Field Station</strong>
+            <small>Evrima RCON</small>
+          </div>
+        </div>
+        <nav>
+          <button data-view="dashboard" class="nav-btn is-active">Dashboard</button>
+          <button data-view="players" class="nav-btn">Players</button>
+          <button data-view="world" class="nav-btn">World</button>
+          <button data-view="whitelist" class="nav-btn">Whitelist</button>
+          <button data-view="console" class="nav-btn">Console</button>
+          <button data-view="audit" class="nav-btn">Audit</button>
+        </nav>
+        <button id="logout-btn" class="ghost-btn">Logout</button>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <h2 id="view-title">Dashboard</h2>
+            <p id="view-subtitle">Server status and quick actions</p>
+          </div>
+          <div class="status-pills">
+            <span id="pill-conn" class="pill">RCON —</span>
+            <span id="pill-players" class="pill">0 players</span>
+            <span id="pill-latency" class="pill">latency —</span>
+            <span id="pill-user" class="pill">admin</span>
+          </div>
+        </header>
+
+        <section id="view-dashboard" class="view">
+          <div class="grid-4" id="stat-cards"></div>
+          <div class="split">
+            <article class="panel">
+              <h3>Announce</h3>
+              <form id="announce-form" class="stack">
+                <textarea id="announce-text" rows="3" placeholder="Server restart in 5 minutes"></textarea>
+                <button type="submit">Send announce</button>
+              </form>
+            </article>
+            <article class="panel">
+              <h3>Server controls</h3>
+              <div class="btn-row">
+                <button id="btn-save" type="button">Save</button>
+                <button id="btn-pause" type="button" class="secondary">Pause</button>
+                <button id="btn-unpause" type="button" class="secondary">Unpause</button>
+                <button id="btn-restart" type="button" class="danger">Restart process</button>
+              </div>
+              <pre id="server-details" class="code-block">Loading…</pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-players" class="view" hidden>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Online players</h3>
+              <button id="btn-refresh-players" type="button" class="secondary">Refresh</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Playable</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="players-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="view-world" class="view" hidden>
+          <div class="split">
+            <article class="panel">
+              <h3>World toggles</h3>
+              <div class="btn-row wrap">
+                <button data-world="ai" type="button">Toggle AI</button>
+                <button data-world="chat" type="button">Toggle global chat</button>
+                <button data-world="humans" type="button">Toggle humans</button>
+                <button data-world="migrations" type="button">Toggle migrations</button>
+                <button data-world="growth-toggle" type="button">Toggle growth</button>
+                <button id="btn-wipe" type="button" class="danger">Wipe corpses</button>
+              </div>
+              <form id="growth-form" class="inline-form">
+                <label>Growth multiplier <input id="growth-value" type="number" step="0.1" min="0" value="1" /></label>
+                <button type="submit">Set</button>
+              </form>
+              <form id="density-form" class="inline-form">
+                <label>AI density <input id="ai-density" type="number" step="0.1" min="0" max="1" value="0.5" /></label>
+                <button type="submit">Set</button>
+              </form>
+            </article>
+            <article class="panel">
+              <h3>Playables</h3>
+              <p class="hint">Comma-separated class names, e.g. Tyrannosaurus, Triceratops</p>
+              <form id="playables-form" class="stack">
+                <textarea id="playables-text" rows="6"></textarea>
+                <button type="submit">updateplayables</button>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-whitelist" class="view" hidden>
+          <article class="panel">
+            <h3>Whitelist</h3>
+            <p class="hint">
+              Evrima không có <code>getWhitelist</code>. Có thể add / remove / toggle.
+              Danh sách ID nằm trong Game.ini (<code>WhitelistIDs</code>).
+            </p>
+            <div class="btn-row">
+              <button id="btn-wl-on" type="button">Enable</button>
+              <button id="btn-wl-off" type="button" class="secondary">Disable</button>
+              <button id="btn-wl-toggle" type="button" class="secondary">Toggle</button>
+            </div>
+            <form id="wl-add-form" class="inline-form">
+              <label>Add player ID <input id="wl-add-id" required /></label>
+              <button type="submit">addwhitelist</button>
+            </form>
+            <form id="wl-remove-form" class="inline-form">
+              <label>Remove player ID <input id="wl-remove-id" required /></label>
+              <button type="submit">removewhitelist</button>
+            </form>
+          </article>
+        </section>
+
+        <section id="view-console" class="view" hidden>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Live console</h3>
+              <span class="hint">journalctl -u theisle -f</span>
+            </div>
+            <pre id="console-log" class="console"></pre>
+          </article>
+        </section>
+
+        <section id="view-audit" class="view" hidden>
+          <article class="panel">
+            <h3>Audit log</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>OK</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+    <div id="modal" class="modal" hidden>
+      <div class="modal-card">
+        <h3 id="modal-title">Action</h3>
+        <form id="modal-form" class="stack">
+          <input id="modal-player" type="hidden" />
+          <input id="modal-action" type="hidden" />
+          <label id="modal-name-wrap" hidden>
+            Name
+            <input id="modal-name" />
+          </label>
+          <label>
+            <span id="modal-field-label">Reason</span>
+            <input id="modal-field" required />
+          </label>
+          <div class="btn-row">
+            <button type="submit">Confirm</button>
+            <button id="modal-cancel" type="button" class="secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>
