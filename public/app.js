@@ -2,6 +2,15 @@ const state = {
   user: null,
   view: "dashboard",
   events: null,
+  details: {},
+  switches: {
+    ai: null,
+    chat: null,
+    humans: null,
+    migrations: null,
+    growth: null,
+    whitelist: null,
+  },
 };
 
 const loginView = document.getElementById("login-view");
@@ -111,6 +120,11 @@ async function refreshStatus() {
     const publicDetails = { ...details };
     delete publicDetails.extra;
     document.getElementById("server-details").textContent = JSON.stringify(publicDetails, null, 2);
+    state.details = details;
+    applySwitchStates(details);
+    if (typeof details.growthMultiplier === "number" && Number.isFinite(details.growthMultiplier)) {
+      document.getElementById("growth-value").value = String(details.growthMultiplier);
+    }
   } catch (error) {
     document.getElementById("pill-conn").textContent = "RCON error";
     document.getElementById("pill-conn").className = "pill is-off";
@@ -324,17 +338,53 @@ document.getElementById("modal-form").addEventListener("submit", async (event) =
   void loadPlayers();
 });
 
-document.querySelectorAll("[data-world]").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    const map = {
-      ai: "/api/world/ai",
-      chat: "/api/world/chat",
-      humans: "/api/world/humans",
-      migrations: "/api/world/migrations",
-      "growth-toggle": "/api/world/growth-toggle",
-    };
-    await api(map[btn.dataset.world], { method: "POST", body: {} });
-    toast(`${btn.dataset.world} sent`);
+function applySwitchStates(details) {
+  setSwitch("ai", details.spawnAI ?? state.switches.ai);
+  setSwitch("chat", details.enableGlobalChat ?? state.switches.chat);
+  setSwitch("humans", details.enableHumans ?? state.switches.humans);
+  setSwitch("migrations", details.enableMigration ?? state.switches.migrations);
+  setSwitch("whitelist", details.whitelist ?? state.switches.whitelist);
+  setSwitch("growth", details.enableGrowthMultiplier ?? state.switches.growth);
+}
+
+function setSwitch(name, value) {
+  const button = document.querySelector(`[data-switch="${name}"]`);
+  if (!button) {
+    return;
+  }
+  if (value === true || value === false) {
+    state.switches[name] = value;
+    button.setAttribute("aria-pressed", value ? "true" : "false");
+    button.querySelector("span").textContent = value ? "On" : "Off";
+    return;
+  }
+  button.setAttribute("aria-pressed", "mixed");
+  button.querySelector("span").textContent = "—";
+}
+
+const switchEndpoints = {
+  ai: "/api/world/ai",
+  chat: "/api/world/chat",
+  humans: "/api/world/humans",
+  migrations: "/api/world/migrations",
+  growth: "/api/world/growth-toggle",
+  whitelist: "/api/whitelist/toggle",
+};
+
+document.querySelectorAll("[data-switch]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const name = button.dataset.switch;
+    const current = state.switches[name];
+    const enabled = current === true ? false : true;
+    button.disabled = true;
+    try {
+      await api(switchEndpoints[name], { method: "POST", body: { enabled } });
+      setSwitch(name, enabled);
+      toast(`${name} ${enabled ? "On" : "Off"}`);
+      await refreshStatus();
+    } finally {
+      button.disabled = false;
+    }
   });
 });
 
@@ -375,18 +425,6 @@ document.getElementById("playables-form").addEventListener("submit", async (even
   toast("Playables updated");
 });
 
-document.getElementById("btn-wl-on").addEventListener("click", async () => {
-  await api("/api/whitelist/toggle", { method: "POST", body: { enabled: true } });
-  toast("Whitelist enable sent");
-});
-document.getElementById("btn-wl-off").addEventListener("click", async () => {
-  await api("/api/whitelist/toggle", { method: "POST", body: { enabled: false } });
-  toast("Whitelist disable sent");
-});
-document.getElementById("btn-wl-toggle").addEventListener("click", async () => {
-  await api("/api/whitelist/toggle", { method: "POST", body: {} });
-  toast("Whitelist toggle sent");
-});
 document.getElementById("wl-add-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   await api("/api/whitelist/add", { method: "POST", body: { playerId: document.getElementById("wl-add-id").value } });

@@ -56,13 +56,18 @@ describe("parsePlayerDataResponse", () => {
 describe("parseServerDetailsResponse", () => {
   it("maps known keys and keeps unknown fields in extra", () => {
     const body =
-      "ServerDetails ServerName: Gateway PvE, ServerMap: Gateway, ServerMaxPlayers: 100, ServerCurrentPlayers: 12, bSpawnAI: true, CustomFlag: experimental";
+      "ServerDetails ServerName: Gateway PvE, ServerMap: Gateway, ServerMaxPlayers: 100, ServerCurrentPlayers: 12, bSpawnAI: true, bEnableGlobalChat: false, bEnableHumans: 1, bServerWhitelist: 0, bEnableMigration: true, GrowthMultiplier: 1.5, CustomFlag: experimental";
     const details = parseServerDetailsResponse(body);
     expect(details.name).toBe("Gateway PvE");
     expect(details.map).toBe("Gateway");
     expect(details.maxPlayers).toBe(100);
     expect(details.currentPlayers).toBe(12);
     expect(details.spawnAI).toBe(true);
+    expect(details.enableGlobalChat).toBe(false);
+    expect(details.enableHumans).toBe(true);
+    expect(details.whitelist).toBe(false);
+    expect(details.enableMigration).toBe(true);
+    expect(details.growthMultiplier).toBe(1.5);
     expect(details.extra.CustomFlag).toBe("experimental");
     expect(details.raw).toContain("CustomFlag");
   });

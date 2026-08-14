@@ -151,6 +151,9 @@ export interface ServerDetails {
   dayLengthMinutes?: number;
   nightLengthMinutes?: number;
   enableGlobalChat?: boolean;
+  enableMigration?: boolean;
+  enableGrowthMultiplier?: boolean;
+  growthMultiplier?: number;
   extra: Record<string, unknown>;
   raw: string;
 }

@@ -401,6 +401,21 @@ function assignServerDetails(details: ServerDetails, source: Record<string, unkn
     bEnableGlobalChat: (value) => {
       details.enableGlobalChat = parseLooseBoolean(value);
     },
+    bEnableMigration: (value) => {
+      details.enableMigration = parseLooseBoolean(value);
+    },
+    bEnableMigrations: (value) => {
+      details.enableMigration = parseLooseBoolean(value);
+    },
+    GrowthMultiplier: (value) => {
+      details.growthMultiplier = Number(value);
+    },
+    bEnableGrowthMultiplier: (value) => {
+      details.enableGrowthMultiplier = parseLooseBoolean(value);
+    },
+    bGrowthMultiplierEnabled: (value) => {
+      details.enableGrowthMultiplier = parseLooseBoolean(value);
+    },
   };
 
   for (const [key, value] of Object.entries(source)) {

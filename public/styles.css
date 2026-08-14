@@ -149,6 +149,28 @@ th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--lin
   display: grid; place-items: center; padding: 20px;
 }
 .modal-card { width: min(420px, 100%); padding: 22px; }
+.switch-list { display: grid; gap: 10px; margin-bottom: 16px; }
+.switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.switch {
+  width: 76px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #2b3628;
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+}
+.switch[aria-pressed="true"] { background: var(--moss); color: #0e140c; }
+.switch[aria-pressed="mixed"] { background: #4a4530; }
 
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }

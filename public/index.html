@@ -90,6 +90,7 @@
               <h3>Online players</h3>
               <button id="btn-refresh-players" type="button" class="secondary">Refresh</button>
             </div>
+            <p class="hint">Kick / Ban / Message. Evrima không có lệnh kill dino — Kick là cách đuổi player (và khủng long đang chơi) khỏi server.</p>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -110,20 +111,40 @@
           <div class="split">
             <article class="panel">
               <h3>World toggles</h3>
-              <div class="btn-row wrap">
-                <button data-world="ai" type="button">Toggle AI</button>
-                <button data-world="chat" type="button">Toggle global chat</button>
-                <button data-world="humans" type="button">Toggle humans</button>
-                <button data-world="migrations" type="button">Toggle migrations</button>
-                <button data-world="growth-toggle" type="button">Toggle growth</button>
-                <button id="btn-wipe" type="button" class="danger">Wipe corpses</button>
+              <p class="hint">
+                Công tắc gửi <code>0</code>/<code>1</code> (bật/tắt), rồi đọc lại <code>serverdetails</code>.
+                Evrima <strong>không có</strong> RCON kill / spawn / teleport / heal — đó là lệnh Legacy.
+                Muốn đuổi khủng long khỏi server: Players → Kick.
+              </p>
+              <div class="switch-list">
+                <div class="switch-row">
+                  <span>AI spawning</span>
+                  <button type="button" class="switch" data-switch="ai" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <span>Global chat</span>
+                  <button type="button" class="switch" data-switch="chat" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <span>Humans</span>
+                  <button type="button" class="switch" data-switch="humans" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <span>Migrations</span>
+                  <button type="button" class="switch" data-switch="migrations" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <span>Growth multiplier feature</span>
+                  <button type="button" class="switch" data-switch="growth" aria-pressed="mixed"><span>—</span></button>
+                </div>
               </div>
+              <button id="btn-wipe" type="button" class="danger">Wipe corpses</button>
               <form id="growth-form" class="inline-form">
                 <label>Growth multiplier <input id="growth-value" type="number" step="0.1" min="0" value="1" /></label>
                 <button type="submit">Set</button>
               </form>
               <form id="density-form" class="inline-form">
-                <label>AI density <input id="ai-density" type="number" step="0.1" min="0" max="1" value="0.5" /></label>
+                <label>AI density <input id="ai-density" type="number" step="0.1" min="0" value="1" /></label>
                 <button type="submit">Set</button>
               </form>
             </article>
@@ -142,13 +163,14 @@
           <article class="panel">
             <h3>Whitelist</h3>
             <p class="hint">
-              Evrima không có <code>getWhitelist</code>. Có thể add / remove / toggle.
-              Danh sách ID nằm trong Game.ini (<code>WhitelistIDs</code>).
+              Evrima không có <code>getWhitelist</code> để lấy full list ID.
+              Công tắc dưới gửi <code>togglewhitelist 0/1</code>. ID thêm/xóa bằng form; danh sách gốc nằm trong Game.ini.
             </p>
-            <div class="btn-row">
-              <button id="btn-wl-on" type="button">Enable</button>
-              <button id="btn-wl-off" type="button" class="secondary">Disable</button>
-              <button id="btn-wl-toggle" type="button" class="secondary">Toggle</button>
+            <div class="switch-list">
+              <div class="switch-row">
+                <span>Whitelist</span>
+                <button type="button" class="switch" data-switch="whitelist" aria-pressed="mixed"><span>—</span></button>
+              </div>
             </div>
             <form id="wl-add-form" class="inline-form">
               <label>Add player ID <input id="wl-add-id" required /></label>
