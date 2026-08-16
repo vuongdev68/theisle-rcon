@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatPlayableUpdate } from "../../src/commands/PlayableCommands.js";
+import { filterKnownAIClasses, KnownAIClasses } from "../../src/commands/aiClasses.js";
 import { getCommandDefinition, UnsupportedCommands } from "../../src/commands/commandRegistry.js";
 import { WhitelistCommands } from "../../src/commands/WhitelistCommands.js";
 import { RconUnsupportedCommandError } from "../../src/rcon/RconErrors.js";
@@ -17,6 +18,28 @@ describe("verified commands", () => {
   it("does not invent getWhitelist", () => {
     expect(getCommandDefinition("getwhitelist")).toBeUndefined();
     expect(UnsupportedCommands.getWhitelist.name).toBe("getWhitelist");
+  });
+
+  it("does not invent slay/kill", () => {
+    expect(getCommandDefinition("slay")).toBeUndefined();
+    expect(getCommandDefinition("kill")).toBeUndefined();
+  });
+});
+
+describe("known AI classes", () => {
+  it("lists the six wildlife classes from developer Game.ini", () => {
+    expect(KnownAIClasses.map((item) => item.name)).toEqual([
+      "Compsognathus",
+      "Pterodactylus",
+      "Boar",
+      "Deer",
+      "Goat",
+      "Seaturtle",
+    ]);
+  });
+
+  it("drops unknown class names", () => {
+    expect(filterKnownAIClasses(["Deer", "Tyrannosaurus", "Goat"])).toEqual(["Deer", "Goat"]);
   });
 });
 

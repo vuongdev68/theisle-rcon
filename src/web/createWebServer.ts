@@ -16,6 +16,7 @@ import type { ServerLogMonitor } from "../process/ServerLogMonitor.js";
 import type { WebSession } from "./session.js";
 import { SessionStore, passwordsMatch } from "./session.js";
 import { AuditLog } from "./audit.js";
+import { KnownAIClasses, isKnownAIClass } from "../commands/aiClasses.js";
 import {
   SESSION_COOKIE,
   parseCookies,
@@ -408,21 +409,31 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
     return runAdminAction(request, reply, audit, "aidensity", async () => manager.admin.setAIDensity(density));
   });
 
+  app.get("/api/world/ai-classes", { preHandler: requireAdmin }, async () => {
+    return { ok: true, classes: KnownAIClasses };
+  });
+
   app.post("/api/world/ai-classes", { preHandler: requireAdmin }, async (request, reply) => {
     const body = readJsonObject(request.body);
     const classes = Array.isArray(body.classes)
-      ? body.classes.filter((item): item is string => typeof item === "string")
+      ? body.classes.filter((item): item is string => typeof item === "string").map((item) => item.trim())
       : undefined;
     if (!classes) {
       sendError(reply, 400, "classes must be a string array");
       return;
     }
+    const unknown = classes.filter((item) => item !== "" && !isKnownAIClass(item));
+    if (unknown.length > 0) {
+      sendError(reply, 400, `Unknown AI class: ${unknown.join(", ")}`);
+      return;
+    }
+    const disabled = classes.filter((item) => item !== "");
     return runAdminAction(
       request,
       reply,
       audit,
       "disableaiclasses",
-      async () => manager.admin.disableAIClasses(classes),
+      async () => manager.admin.disableAIClasses(disabled),
     );
   });
 

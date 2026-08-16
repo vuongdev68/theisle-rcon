@@ -367,22 +367,22 @@ npm run build
 npm start
 ```
 
-Mặc định: `http://127.0.0.1:3000`
+Mặc định: `http://127.0.0.1:3123`
 
 Từ máy bạn:
 
 ```bash
-ssh -L 3000:127.0.0.1:3000 steam@your-vps
+ssh -L 3123:127.0.0.1:3123 steam@your-vps
 ```
 
-Rồi mở `http://127.0.0.1:3000`.
+Rồi mở `http://127.0.0.1:3123`.
 
 ### Cấu hình web
 
 ```env
 WEB_ENABLED=true
 WEB_HOST=127.0.0.1
-WEB_PORT=3000
+WEB_PORT=3123
 WEB_USERNAME=admin
 WEB_PASSWORD=change-me-too
 ```

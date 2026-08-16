@@ -54,12 +54,12 @@ function setView(name) {
     btn.classList.toggle("is-active", btn.dataset.view === name);
   });
   const titles = {
-    dashboard: ["Dashboard", "Server status and quick actions"],
-    players: ["Players", "Kick, ban, and direct message"],
-    world: ["World", "AI, growth, playables, corpses"],
-    whitelist: ["Whitelist", "Add / remove / toggle"],
-    console: ["Console", "Live journalctl stream"],
-    audit: ["Audit", "Admin actions in this process"],
+    dashboard: ["Tổng quan", "Trạng thái server và thao tác nhanh"],
+    players: ["Người chơi", "Kick, ban, nhắn tin — không có slay"],
+    world: ["Thế giới", "Công tắc, grow, AI NPC, playables"],
+    whitelist: ["Whitelist", "Chỉ cho SteamID được phép vào"],
+    console: ["Console", "Log live của process theisle"],
+    audit: ["Nhật ký", "Lệnh admin gửi từ panel này"],
   };
   const pair = titles[name];
   document.getElementById("view-title").textContent = pair[0];
@@ -69,6 +69,7 @@ function setView(name) {
   }
   if (name === "world") {
     void loadPlayables();
+    void loadAIClasses();
   }
   if (name === "audit") {
     void loadAudit();
@@ -113,9 +114,9 @@ async function refreshStatus() {
       health.latency == null ? "latency —" : `latency ${health.latency}ms`;
     document.getElementById("stat-cards").innerHTML = [
       card("Map", details.map ?? "—"),
-      card("Players", `${details.currentPlayers ?? 0} / ${details.maxPlayers ?? "—"}`),
-      card("Commands", String(metrics.totalCommands ?? 0)),
-      card("Reconnects", String(metrics.reconnectCount ?? 0)),
+      card("Người chơi", `${details.currentPlayers ?? 0} / ${details.maxPlayers ?? "—"}`),
+      card("Lệnh RCON", String(metrics.totalCommands ?? 0)),
+      card("Reconnect", String(metrics.reconnectCount ?? 0)),
     ].join("");
     const publicDetails = { ...details };
     delete publicDetails.extra;
@@ -142,7 +143,7 @@ async function loadPlayers() {
   const { players } = await api("/api/players");
   const body = document.getElementById("players-body");
   if (!players.length) {
-    body.innerHTML = `<tr><td colspan="4">No players online</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4">Không có người chơi online</td></tr>`;
     return;
   }
   body.innerHTML = players
@@ -155,11 +156,37 @@ async function loadPlayers() {
         <td>
           <button data-act="kick" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="secondary">Kick</button>
           <button data-act="ban" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="danger">Ban</button>
-          <button data-act="message" data-id="${escapeAttr(id)}" type="button">DM</button>
+          <button data-act="message" data-id="${escapeAttr(id)}" type="button">Nhắn</button>
         </td>
       </tr>`;
     })
     .join("");
+}
+
+async function loadAIClasses() {
+  try {
+    const { classes } = await api("/api/world/ai-classes");
+    const list = document.getElementById("ai-class-list");
+    const kindVi = {
+      "small carnivore": "ăn thịt nhỏ",
+      flying: "bay",
+      prey: "mồi",
+      aquatic: "dưới nước",
+    };
+    list.innerHTML = classes
+      .map(
+        (item) => `<label class="switch-row">
+          <div class="switch-copy">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(kindVi[item.kind] || item.kind)}</span>
+          </div>
+          <input type="checkbox" data-ai-class="${escapeAttr(item.name)}" checked />
+        </label>`,
+      )
+      .join("");
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 async function loadPlayables() {
@@ -229,9 +256,10 @@ function openModal(action, playerId, playerName = "") {
   document.getElementById("modal-name").value = playerName;
   document.getElementById("modal-field").value = "";
   document.getElementById("modal-name-wrap").hidden = action !== "ban";
-  const labels = { kick: "Reason", ban: "Reason", message: "Message" };
-  document.getElementById("modal-field-label").textContent = labels[action] ?? "Value";
-  document.getElementById("modal-title").textContent = `${action} ${playerName || playerId}`;
+  const labels = { kick: "Lý do kick", ban: "Lý do ban", message: "Nội dung tin" };
+  const titles = { kick: "Kick", ban: "Ban", message: "Nhắn tin" };
+  document.getElementById("modal-field-label").textContent = labels[action] ?? "Giá trị";
+  document.getElementById("modal-title").textContent = `${titles[action] ?? action} · ${playerName || playerId}`;
   modalEl.hidden = false;
 }
 
@@ -280,27 +308,27 @@ document.getElementById("announce-form").addEventListener("submit", async (event
   const message = document.getElementById("announce-text").value.trim();
   await api("/api/server/announce", { method: "POST", body: { message } });
   document.getElementById("announce-text").value = "";
-  toast("Announcement sent");
+  toast("Đã gửi thông báo");
 });
 
 document.getElementById("btn-save").addEventListener("click", async () => {
   await api("/api/server/save", { method: "POST", body: {} });
-  toast("Save sent");
+  toast("Đã save thế giới");
 });
 document.getElementById("btn-pause").addEventListener("click", async () => {
   await api("/api/server/pause", { method: "POST", body: {} });
-  toast("Pause sent");
+  toast("Đã pause");
 });
 document.getElementById("btn-unpause").addEventListener("click", async () => {
   await api("/api/server/unpause", { method: "POST", body: {} });
-  toast("Unpause sent");
+  toast("Đã unpause");
 });
 document.getElementById("btn-restart").addEventListener("click", async () => {
-  if (!confirm("Restart theisle systemd unit?")) {
+  if (!confirm("Restart process theisle?")) {
     return;
   }
   await api("/api/server/restart", { method: "POST", body: { confirm: true } });
-  toast("Restart requested");
+  toast("Đã yêu cầu restart theisle");
 });
 document.getElementById("btn-refresh-players").addEventListener("click", () => {
   void loadPlayers();
@@ -380,7 +408,15 @@ document.querySelectorAll("[data-switch]").forEach((button) => {
     try {
       await api(switchEndpoints[name], { method: "POST", body: { enabled } });
       setSwitch(name, enabled);
-      toast(`${name} ${enabled ? "On" : "Off"}`);
+      const labels = {
+        ai: "AI hoang dã",
+        chat: "Global chat",
+        humans: "Humans",
+        migrations: "Migration",
+        growth: "Hệ số grow",
+        whitelist: "Whitelist",
+      };
+      toast(`${labels[name] ?? name}: ${enabled ? "On" : "Off"}`);
       await refreshStatus();
     } finally {
       button.disabled = false;
@@ -389,11 +425,11 @@ document.querySelectorAll("[data-switch]").forEach((button) => {
 });
 
 document.getElementById("btn-wipe").addEventListener("click", async () => {
-  if (!confirm("Wipe all corpses?")) {
+  if (!confirm("Dọn toàn bộ xác trên map?")) {
     return;
   }
   await api("/api/world/corpses", { method: "POST", body: { confirm: true } });
-  toast("wipecorpses sent");
+  toast("Đã dọn xác");
 });
 
 document.getElementById("growth-form").addEventListener("submit", async (event) => {
@@ -402,7 +438,7 @@ document.getElementById("growth-form").addEventListener("submit", async (event) 
     method: "POST",
     body: { value: Number(document.getElementById("growth-value").value) },
   });
-  toast("Growth multiplier set");
+  toast("Đã đặt hệ số grow");
 });
 
 document.getElementById("density-form").addEventListener("submit", async (event) => {
@@ -411,7 +447,15 @@ document.getElementById("density-form").addEventListener("submit", async (event)
     method: "POST",
     body: { density: Number(document.getElementById("ai-density").value) },
   });
-  toast("AI density set");
+  toast("Đã đặt mật độ AI");
+});
+
+document.getElementById("btn-ai-classes").addEventListener("click", async () => {
+  const disabled = [...document.querySelectorAll("[data-ai-class]")]
+    .filter((input) => !input.checked)
+    .map((input) => input.dataset.aiClass);
+  await api("/api/world/ai-classes", { method: "POST", body: { classes: disabled } });
+  toast(disabled.length ? `Đã tắt AI: ${disabled.join(", ")}` : "Tất cả loài AI đã cho spawn");
 });
 
 document.getElementById("playables-form").addEventListener("submit", async (event) => {
@@ -422,13 +466,13 @@ document.getElementById("playables-form").addEventListener("submit", async (even
     .map((item) => item.trim())
     .filter(Boolean);
   await api("/api/playables", { method: "POST", body: { playables } });
-  toast("Playables updated");
+  toast("Đã cập nhật playables");
 });
 
 document.getElementById("wl-add-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   await api("/api/whitelist/add", { method: "POST", body: { playerId: document.getElementById("wl-add-id").value } });
-  toast("Whitelist add sent");
+  toast("Đã thêm whitelist");
 });
 document.getElementById("wl-remove-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -436,7 +480,7 @@ document.getElementById("wl-remove-form").addEventListener("submit", async (even
     method: "POST",
     body: { playerId: document.getElementById("wl-remove-id").value },
   });
-  toast("Whitelist remove sent");
+  toast("Đã xóa whitelist");
 });
 
 void boot();

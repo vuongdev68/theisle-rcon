@@ -103,7 +103,7 @@ export function loadConfig(): AppConfig {
     web: {
       enabled: readBoolean("WEB_ENABLED", true),
       host: readString("WEB_HOST", "127.0.0.1"),
-      port: readNumber("WEB_PORT", 3000),
+      port: readNumber("WEB_PORT", 3123),
       username: readString("WEB_USERNAME", "admin"),
       password: readString("WEB_PASSWORD", ""),
       sessionTtlMs: readNumber("WEB_SESSION_TTL_MS", 86_400_000),
