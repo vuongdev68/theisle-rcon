@@ -39,4 +39,12 @@ export class AdminService {
   async disableAIClasses(classes: string[], options?: ExecuteOptions) {
     return this.client.disableAIClasses(classes, options);
   }
+
+  async toggleAILearning(enabled?: boolean, options?: ExecuteOptions) {
+    return this.client.toggleAILearning(enabled, options);
+  }
+
+  async toggleNetUpdateDistanceChecks(enabled?: boolean, options?: ExecuteOptions) {
+    return this.client.toggleNetUpdateDistanceChecks(enabled, options);
+  }
 }

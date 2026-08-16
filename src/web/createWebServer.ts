@@ -16,7 +16,8 @@ import type { ServerLogMonitor } from "../process/ServerLogMonitor.js";
 import type { WebSession } from "./session.js";
 import { SessionStore, passwordsMatch } from "./session.js";
 import { AuditLog } from "./audit.js";
-import { KnownAIClasses, isKnownAIClass } from "../commands/aiClasses.js";
+import { KnownAIClasses, isValidAIClassName } from "../commands/aiClasses.js";
+import { mergePlayableCatalog } from "../commands/playableClasses.js";
 import {
   SESSION_COOKIE,
   parseCookies,
@@ -297,7 +298,10 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
     const name = readStringField(body, "name");
     const durationSeconds = readNumberField(body, "durationSeconds") ?? 0;
     try {
-      const response = await manager.players.ban(id, reason);
+      const response = await manager.players.ban(id, reason, {
+        name,
+        durationSeconds,
+      });
       audit.record({
         actor: session.username,
         role: session.role,
@@ -344,7 +348,7 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
 
   app.get("/api/playables", { preHandler: requireAdmin }, async (_request, reply) => {
     try {
-      const playables = await manager.server.getPlayables();
+      const playables = mergePlayableCatalog(await manager.server.getPlayables());
       return { ok: true, playables };
     } catch (error) {
       sendCaughtError(reply, error);
@@ -427,7 +431,7 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
       sendError(reply, 400, "classes must be a string array");
       return;
     }
-    const unknown = classes.filter((item) => item !== "" && !isKnownAIClass(item));
+    const unknown = classes.filter((item) => item !== "" && !isValidAIClassName(item));
     if (unknown.length > 0) {
       sendError(reply, 400, `Unknown AI class: ${unknown.join(", ")}`);
       return;
@@ -469,6 +473,22 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
   app.post("/api/world/migrations", { preHandler: requireAdmin }, async (request, reply) => {
     const enabled = readBooleanField(readJsonObject(request.body), "enabled");
     return runAdminAction(request, reply, audit, "togglemigrations", async () => manager.admin.toggleMigrations(enabled));
+  });
+
+  app.post("/api/world/ai-learning", { preHandler: requireAdmin }, async (request, reply) => {
+    const enabled = readBooleanField(readJsonObject(request.body), "enabled");
+    return runAdminAction(request, reply, audit, "toggleailearning", async () => manager.admin.toggleAILearning(enabled));
+  });
+
+  app.post("/api/world/net-distance", { preHandler: requireAdmin }, async (request, reply) => {
+    const enabled = readBooleanField(readJsonObject(request.body), "enabled");
+    return runAdminAction(
+      request,
+      reply,
+      audit,
+      "togglenetupdatedistancechecks",
+      async () => manager.admin.toggleNetUpdateDistanceChecks(enabled),
+    );
   });
 
   app.post("/api/world/corpses", { preHandler: requireAdmin }, async (request, reply) => {

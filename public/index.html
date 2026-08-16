@@ -65,23 +65,28 @@
           <div class="grid-4" id="stat-cards"></div>
           <div class="split">
             <article class="panel">
-              <h3>Thông báo server</h3>
-              <p class="hint">Hiện banner cho toàn bộ người chơi đang online. Dùng trước khi restart hoặc bảo trì.</p>
+              <h3>Thông báo</h3>
+              <p class="hint">Banner cho mọi người đang online — như nút Send Announcement trên launcher.</p>
               <form id="announce-form" class="stack">
                 <textarea id="announce-text" rows="3" placeholder="Server restart sau 5 phút"></textarea>
                 <button type="submit">Gửi thông báo</button>
               </form>
+              <form id="save-form" class="inline-form">
+                <label>Tên backup (tuỳ chọn) <input id="save-name" placeholder="backup-01" /></label>
+                <button id="btn-save" type="submit">Save thế giới</button>
+              </form>
             </article>
             <article class="panel">
               <h3>Điều khiển server</h3>
-              <p class="hint">Save ghi thế giới. Pause đóng băng map (cả grow). Restart là restart process <code>theisle</code>, không phải panel này.</p>
+              <p class="hint">Pause đóng băng map (cả grow). Restart là process <code>theisle</code>, không phải panel web.</p>
               <div class="btn-row">
-                <button id="btn-save" type="button">Save thế giới</button>
                 <button id="btn-pause" type="button" class="secondary">Pause</button>
                 <button id="btn-unpause" type="button" class="secondary">Unpause</button>
+                <button id="btn-queue" type="button" class="secondary">Queue status</button>
                 <button id="btn-restart" type="button" class="danger">Restart theisle</button>
               </div>
-              <p class="field-label">serverdetails (đọc từ game)</p>
+              <pre id="queue-status" class="code-block compact">Queue: —</pre>
+              <p class="field-label">serverdetails</p>
               <pre id="server-details" class="code-block">Đang tải…</pre>
             </article>
           </div>
@@ -94,16 +99,18 @@
               <button id="btn-refresh-players" type="button" class="secondary">Làm mới</button>
             </div>
             <p class="hint">
-              <strong>Kick</strong> — đuổi (lệnh thật). <strong>Ban</strong> — cấm. <strong>Nhắn</strong> — tin riêng.
-              <strong>Slay</strong> — gửi thử <code>slay,&lt;SteamID&gt;</code> qua opcode dự phòng 0x70; <em>không có trong bảng dev</em>, server có thể bỏ qua, dino thường không chết.
+              Giống tab Administrator trên launcher: Kick / Ban / Nhắn. Bảng lấy thêm getplayerdata (loài, grow, máu).
+              <strong>Slay</strong> chỉ thử opcode 0x70 — server có thể bỏ qua.
             </p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Tên</th>
-                    <th>Steam / ID</th>
+                    <th>ID</th>
                     <th>Loài</th>
+                    <th>Grow</th>
+                    <th>HP</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -150,9 +157,23 @@
                 <div class="switch-row">
                   <div class="switch-copy">
                     <strong>Hệ số grow</strong>
-                    <span>Phải On thì ô số bên cạnh mới có tác dụng. Off = grow mặc định/tắt nhân.</span>
+                    <span>Phải On thì ô số mới có tác dụng.</span>
                   </div>
                   <button type="button" class="switch" data-switch="growth" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-copy">
+                    <strong>AI learning</strong>
+                    <span>Thường chỉ official. Community server có thể không đổi gì.</span>
+                  </div>
+                  <button type="button" class="switch" data-switch="learning" aria-pressed="mixed"><span>—</span></button>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-copy">
+                    <strong>Net distance checks</strong>
+                    <span>Tối ưu sync mạng. Bật/tắt live như launcher advanced.</span>
+                  </div>
+                  <button type="button" class="switch" data-switch="net" aria-pressed="mixed"><span>—</span></button>
                 </div>
               </div>
             </article>
@@ -188,12 +209,9 @@
 
             <article class="panel">
               <h3>Playables (dino người chơi)</h3>
-              <p class="hint">
-                Danh sách loài player được chọn khi vào game. Cách nhau bằng dấu phẩy.
-                Đây <strong>không</strong> phải spawn dino tại tọa độ — chỉ roster chọn nhân vật.
-              </p>
+              <p class="hint">Checklist như launcher. Tick = được chọn khi vào game. Không phải spawn tại tọa độ.</p>
               <form id="playables-form" class="stack">
-                <textarea id="playables-text" rows="8"></textarea>
+                <div id="playables-grid" class="check-grid"></div>
                 <button type="submit">Cập nhật playables</button>
               </form>
             </article>
@@ -270,6 +288,10 @@
           <label id="modal-name-wrap" hidden>
             Tên
             <input id="modal-name" />
+          </label>
+          <label id="modal-duration-wrap" hidden>
+            Ban (phút, 0 = vĩnh viễn)
+            <input id="modal-duration" type="number" min="0" value="0" />
           </label>
           <label>
             <span id="modal-field-label">Lý do</span>

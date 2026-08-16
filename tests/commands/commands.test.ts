@@ -27,19 +27,25 @@ describe("verified commands", () => {
 });
 
 describe("known AI classes", () => {
-  it("lists the six wildlife classes from developer Game.ini", () => {
+  it("lists wildlife classes used by the launcher and developer Game.ini", () => {
     expect(KnownAIClasses.map((item) => item.name)).toEqual([
       "Compsognathus",
       "Pterodactylus",
+      "Psittacosaurus",
       "Boar",
       "Deer",
       "Goat",
+      "Rabbit",
+      "Chicken",
       "Seaturtle",
+      "SeaTurtle",
+      "Bullfrog",
+      "Crab",
     ]);
   });
 
-  it("drops unknown class names", () => {
-    expect(filterKnownAIClasses(["Deer", "Tyrannosaurus", "Goat"])).toEqual(["Deer", "Goat"]);
+  it("drops invalid class names", () => {
+    expect(filterKnownAIClasses(["Deer", "Tyrannosaurus!", "Goat"])).toEqual(["Deer", "Goat"]);
   });
 });
 

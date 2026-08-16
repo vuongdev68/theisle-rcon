@@ -10,6 +10,8 @@ const state = {
     migrations: null,
     growth: null,
     whitelist: null,
+    learning: null,
+    net: null,
   },
 };
 
@@ -55,7 +57,7 @@ function setView(name) {
   });
   const titles = {
     dashboard: ["Tổng quan", "Trạng thái server và thao tác nhanh"],
-    players: ["Người chơi", "Kick, ban, slay thử, nhắn tin"],
+    players: ["Người chơi", "Kick, ban, slay, nhắn tin"],
     world: ["Thế giới", "Công tắc, grow, AI NPC, playables"],
     whitelist: ["Whitelist", "Chỉ cho SteamID được phép vào"],
     console: ["Console", "Log live của process theisle"],
@@ -143,17 +145,21 @@ async function loadPlayers() {
   const { players } = await api("/api/players");
   const body = document.getElementById("players-body");
   if (!players.length) {
-    body.innerHTML = `<tr><td colspan="4">Không có người chơi online</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6">Không có người chơi online</td></tr>`;
     return;
   }
   body.innerHTML = players
     .map((player) => {
       const id = player.id || player.steamId || "";
+      const growth = player.growth == null ? "—" : Number(player.growth).toFixed(2);
+      const health = player.health == null ? "—" : Number(player.health).toFixed(2);
       return `<tr>
         <td>${escapeHtml(player.name || "—")}</td>
         <td><code>${escapeHtml(id)}</code></td>
         <td>${escapeHtml(player.playable || "—")}</td>
-        <td>
+        <td>${escapeHtml(growth)}</td>
+        <td>${escapeHtml(health)}</td>
+        <td class="actions">
           <button data-act="kick" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="secondary">Kick</button>
           <button data-act="slay" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="danger">Slay</button>
           <button data-act="ban" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="danger">Ban</button>
@@ -193,7 +199,15 @@ async function loadAIClasses() {
 async function loadPlayables() {
   try {
     const { playables } = await api("/api/playables");
-    document.getElementById("playables-text").value = playables.map((item) => item.name).join(", ");
+    const grid = document.getElementById("playables-grid");
+    grid.innerHTML = playables
+      .map(
+        (item) => `<label>
+          <input type="checkbox" data-playable="${escapeAttr(item.name)}" ${item.enabled === false ? "" : "checked"} />
+          ${escapeHtml(item.name)}
+        </label>`,
+      )
+      .join("");
   } catch (error) {
     toast(error.message);
   }
@@ -257,6 +271,8 @@ function openModal(action, playerId, playerName = "") {
   document.getElementById("modal-name").value = playerName;
   document.getElementById("modal-field").value = "";
   document.getElementById("modal-name-wrap").hidden = action !== "ban";
+  document.getElementById("modal-duration-wrap").hidden = action !== "ban";
+  document.getElementById("modal-duration").value = "0";
   const labels = { kick: "Lý do kick", ban: "Lý do ban", message: "Nội dung tin" };
   const titles = { kick: "Kick", ban: "Ban", message: "Nhắn tin" };
   document.getElementById("modal-field-label").textContent = labels[action] ?? "Giá trị";
@@ -312,8 +328,10 @@ document.getElementById("announce-form").addEventListener("submit", async (event
   toast("Đã gửi thông báo");
 });
 
-document.getElementById("btn-save").addEventListener("click", async () => {
-  await api("/api/server/save", { method: "POST", body: {} });
+document.getElementById("save-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const backupName = document.getElementById("save-name").value.trim();
+  await api("/api/server/save", { method: "POST", body: backupName ? { backupName } : {} });
   toast("Đã save thế giới");
 });
 document.getElementById("btn-pause").addEventListener("click", async () => {
@@ -323,6 +341,11 @@ document.getElementById("btn-pause").addEventListener("click", async () => {
 document.getElementById("btn-unpause").addEventListener("click", async () => {
   await api("/api/server/unpause", { method: "POST", body: {} });
   toast("Đã unpause");
+});
+document.getElementById("btn-queue").addEventListener("click", async () => {
+  const { queue } = await api("/api/server/queue");
+  document.getElementById("queue-status").textContent = JSON.stringify(queue, null, 2);
+  toast("Đã đọc queue");
 });
 document.getElementById("btn-restart").addEventListener("click", async () => {
   if (!confirm("Restart process theisle?")) {
@@ -367,7 +390,11 @@ document.getElementById("modal-form").addEventListener("submit", async (event) =
   } else if (action === "ban") {
     await api(`/api/players/${id}/ban`, {
       method: "POST",
-      body: { reason: field, name: document.getElementById("modal-name").value },
+      body: {
+        reason: field,
+        name: document.getElementById("modal-name").value,
+        durationSeconds: Number(document.getElementById("modal-duration").value || 0),
+      },
     });
   } else {
     await api(`/api/players/${id}/message`, { method: "POST", body: { message: field } });
@@ -384,6 +411,12 @@ function applySwitchStates(details) {
   setSwitch("migrations", details.enableMigration ?? state.switches.migrations);
   setSwitch("whitelist", details.whitelist ?? state.switches.whitelist);
   setSwitch("growth", details.enableGrowthMultiplier ?? state.switches.growth);
+  if (state.switches.learning !== null) {
+    setSwitch("learning", state.switches.learning);
+  }
+  if (state.switches.net !== null) {
+    setSwitch("net", state.switches.net);
+  }
 }
 
 function setSwitch(name, value) {
@@ -408,6 +441,8 @@ const switchEndpoints = {
   migrations: "/api/world/migrations",
   growth: "/api/world/growth-toggle",
   whitelist: "/api/whitelist/toggle",
+  learning: "/api/world/ai-learning",
+  net: "/api/world/net-distance",
 };
 
 document.querySelectorAll("[data-switch]").forEach((button) => {
@@ -426,6 +461,8 @@ document.querySelectorAll("[data-switch]").forEach((button) => {
         migrations: "Migration",
         growth: "Hệ số grow",
         whitelist: "Whitelist",
+        learning: "AI learning",
+        net: "Net distance",
       };
       toast(`${labels[name] ?? name}: ${enabled ? "On" : "Off"}`);
       await refreshStatus();
@@ -471,11 +508,9 @@ document.getElementById("btn-ai-classes").addEventListener("click", async () => 
 
 document.getElementById("playables-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const playables = document
-    .getElementById("playables-text")
-    .value.split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const playables = [...document.querySelectorAll("[data-playable]")]
+    .filter((input) => input.checked)
+    .map((input) => input.dataset.playable);
   await api("/api/playables", { method: "POST", body: { playables } });
   toast("Đã cập nhật playables");
 });
