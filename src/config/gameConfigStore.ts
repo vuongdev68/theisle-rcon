@@ -29,7 +29,10 @@ const EOS_CLIENT_ID = "xyza7891gk5PRo3J7G9puCJGFJjmEguW";
 const EOS_CLIENT_SECRET = "pKWl6t5i9NJK8gTpVlAxzENZ65P8hYzodV8Dqe5Rlc8";
 
 export class GameConfigStore {
-  constructor(private readonly serverDir: string) {}
+  constructor(
+    private readonly serverDir: string,
+    private readonly appDir = process.cwd(),
+  ) {}
 
   get enabled(): boolean {
     return this.serverDir.trim().length > 0;
@@ -65,6 +68,10 @@ export class GameConfigStore {
   }
 
   settingsPath(): string {
+    return join(this.appDir, "launcher_settings.ini");
+  }
+
+  private legacySettingsPath(): string {
     return join(this.serverDir, "launcher_settings.ini");
   }
 
@@ -83,19 +90,31 @@ export class GameConfigStore {
     if (existsSync(this.engineIniPath())) {
       this.applyEngineIni(config, readFileSync(this.engineIniPath(), "utf8"));
     }
-    if (existsSync(this.settingsPath())) {
-      this.applyLauncherSettings(config, readFileSync(this.settingsPath(), "utf8"));
+    const settingsFile = existsSync(this.settingsPath())
+      ? this.settingsPath()
+      : this.enabled && existsSync(this.legacySettingsPath())
+        ? this.legacySettingsPath()
+        : undefined;
+    if (settingsFile) {
+      this.applyLauncherSettings(config, readFileSync(settingsFile, "utf8"));
     }
     return config;
   }
 
   save(config: ServerConfiguration): void {
-    if (!this.enabled) {
-      throw new Error("SERVER_DIR is not set");
-    }
-    this.writeGameIni(config);
-    this.writeEngineIni(config);
     this.writeLauncherSettings(config);
+    if (!this.enabled) {
+      return;
+    }
+    try {
+      this.writeGameIni(config);
+      this.writeEngineIni(config);
+    } catch (error) {
+      if (isPermissionError(error)) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private writeDefaultGameIni(): void {
@@ -426,6 +445,10 @@ function parsePriority(value: string): ServerConfiguration["processPriority"] {
     return value;
   }
   return "Normal";
+}
+
+function isPermissionError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error.code === "EACCES" || error.code === "EPERM"));
 }
 
 export function isDebugLogKey(value: string): value is DebugLogKey {

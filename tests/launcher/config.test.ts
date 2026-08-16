@@ -26,7 +26,7 @@ describe("GameConfigStore", () => {
   it("round-trips Game.ini lists into the sections the game reads", () => {
     const root = mkdtempSync(join(tmpdir(), "isle-ini-"));
     mkdirSync(join(root, "TheIsle", "Saved", "Config", "LinuxServer"), { recursive: true });
-    const store = new GameConfigStore(root);
+    const store = new GameConfigStore(root, root);
     const config = store.load();
     config.serverName = "Test Gateway";
     config.dayLength = "50";
@@ -51,6 +51,21 @@ describe("GameConfigStore", () => {
     expect(reloaded.adminSteamIds).toContain("76561198000000001");
     expect(reloaded.dinosaurs.find((item) => item.name === "Tyrannosaurus")?.enabled).toBe(true);
     expect(reloaded.disallowedAIClasses.find((item) => item.name === "Chicken")?.enabled).toBe(true);
+  });
+
+  it("keeps auto-broadcast after save/load in the web settings file", () => {
+    const root = mkdtempSync(join(tmpdir(), "isle-broadcast-"));
+    mkdirSync(join(root, "TheIsle", "Saved", "Config", "LinuxServer"), { recursive: true });
+    const store = new GameConfigStore(root, root);
+    const config = store.load();
+    config.autoBroadcastEnabled = true;
+    config.autoBroadcastMessage = "Test Interval";
+    config.autoBroadcastIntervalMinutes = 1;
+    store.save(config);
+    expect(readFileSync(store.settingsPath(), "utf8")).toContain("AutoBroadcastEnabled=true");
+    expect(store.load().autoBroadcastEnabled).toBe(true);
+    expect(store.load().autoBroadcastMessage).toBe("Test Interval");
+    expect(store.load().autoBroadcastIntervalMinutes).toBe(1);
   });
 });
 

@@ -237,6 +237,9 @@ document.getElementById("settings-form").addEventListener("submit", async (event
 document.getElementById("btn-save-perf").addEventListener("click", () => saveSettings());
 document.getElementById("btn-save-auto").addEventListener("click", () => saveSettings());
 document.getElementById("btn-save-broadcast").addEventListener("click", () => saveSettings());
+document.querySelector('[data-set="autoBroadcastEnabled"]')?.addEventListener("change", () => {
+  void saveSettings();
+});
 document.getElementById("btn-save-chat").addEventListener("click", () => saveSettings());
 
 document.getElementById("chk-validate").addEventListener("change", async () => {

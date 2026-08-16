@@ -129,10 +129,6 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/settings", { preHandler: requireAdmin }, async (request, reply) => {
-    if (!store.enabled) {
-      sendError(reply, 400, "SERVER_DIR is not set on the VPS");
-      return;
-    }
     try {
       const next = applySettingsPatch(store.load(), readJsonObject(request.body));
       store.save(next);
