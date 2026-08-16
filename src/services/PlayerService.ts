@@ -28,4 +28,8 @@ export class PlayerService {
   async directMessage(playerId: string, message: string, options?: ExecuteOptions) {
     return this.client.directMessage(playerId, message, options);
   }
+
+  async slay(playerId: string, options?: ExecuteOptions) {
+    return this.client.players.slayPlayer(playerId, options);
+  }
 }

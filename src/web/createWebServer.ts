@@ -337,6 +337,11 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
     }
   });
 
+  app.post("/api/players/:id/slay", { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    return runAdminAction(request, reply, audit, "slay", async () => manager.players.slay(id), id);
+  });
+
   app.get("/api/playables", { preHandler: requireAdmin }, async (_request, reply) => {
     try {
       const playables = await manager.server.getPlayables();

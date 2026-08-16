@@ -55,7 +55,7 @@ function setView(name) {
   });
   const titles = {
     dashboard: ["Tổng quan", "Trạng thái server và thao tác nhanh"],
-    players: ["Người chơi", "Kick, ban, nhắn tin — không có slay"],
+    players: ["Người chơi", "Kick, ban, slay thử, nhắn tin"],
     world: ["Thế giới", "Công tắc, grow, AI NPC, playables"],
     whitelist: ["Whitelist", "Chỉ cho SteamID được phép vào"],
     console: ["Console", "Log live của process theisle"],
@@ -155,6 +155,7 @@ async function loadPlayers() {
         <td>${escapeHtml(player.playable || "—")}</td>
         <td>
           <button data-act="kick" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="secondary">Kick</button>
+          <button data-act="slay" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="danger">Slay</button>
           <button data-act="ban" data-id="${escapeAttr(id)}" data-name="${escapeAttr(player.name || "")}" type="button" class="danger">Ban</button>
           <button data-act="message" data-id="${escapeAttr(id)}" type="button">Nhắn</button>
         </td>
@@ -334,9 +335,19 @@ document.getElementById("btn-refresh-players").addEventListener("click", () => {
   void loadPlayers();
 });
 
-document.getElementById("players-body").addEventListener("click", (event) => {
+document.getElementById("players-body").addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-act]");
   if (!button) {
+    return;
+  }
+  if (button.dataset.act === "slay") {
+    const id = button.dataset.id;
+    if (!confirm(`Gửi slay ${id}?\nKhông phải lệnh dev — server có thể bỏ qua.`)) {
+      return;
+    }
+    await api(`/api/players/${encodeURIComponent(id)}/slay`, { method: "POST", body: {} });
+    toast(`Đã gửi slay ${id} (0x70, có thể bị bỏ qua)`);
+    void loadPlayers();
     return;
   }
   openModal(button.dataset.act, button.dataset.id, button.dataset.name || "");

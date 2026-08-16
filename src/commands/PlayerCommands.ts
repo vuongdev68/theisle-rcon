@@ -64,4 +64,18 @@ export class PlayerCommands {
       allowEmptyResponse: true,
     });
   }
+
+  /**
+   * Not in the developer opcode table. Sends custom 0x70 with `slay,<playerId>`.
+   * The dedicated server may ignore this packet.
+   */
+  async slayPlayer(playerId: string, options?: ExecuteOptions): Promise<RconResponse> {
+    const args = evrimaProtocol.joinArguments(["slay", playerId]);
+    return this.client.executeOpcode(0x70, args, {
+      ...options,
+      commandName: "slay",
+      verified: false,
+      allowEmptyResponse: true,
+    });
+  }
 }
