@@ -45,6 +45,17 @@ h1, h2, h3 { margin: 0 0 8px; letter-spacing: -0.02em; }
   padding: 8px 12px;
   font-size: 13px;
 }
+.prime-guide {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.prime-hud h3 { margin-top: 18px; font-size: 15px; }
+.badge-prime { color: var(--gold); }
+.badge-frail { color: var(--blood); }
+.badge-window { color: var(--water); }
 .id-bar, .hud, .stash, .live-map, .map-list {
   background: var(--panel);
   border: 1px solid var(--line);

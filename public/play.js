@@ -125,6 +125,69 @@ function renderMap(snapshot) {
   list.innerHTML = `<p>${markers.length} trên map</p><ul>${rows || "<li>Chưa có ai online.</li>"}</ul>`;
 }
 
+const PRIME_COPY = {
+  offline: {
+    title: "Chưa online",
+    detail: "Vào server rồi nhập SteamID. Quest từng ô không nằm trong RCON hay file save.",
+    badge: "",
+  },
+  "no-growth": {
+    title: "Chưa có Growth",
+    detail: "RCON chưa gửi Growth. Vào game, chọn dino, đợi vài giây.",
+    badge: "",
+  },
+  window: {
+    title: "Cửa sổ nhiệm vụ",
+    detail: "Dưới 75% growth. Làm đủ ~5 mục trước mốc này. Server không báo đã xong quest nào.",
+    badge: "Trước 75%",
+  },
+  prime: {
+    title: "Prime",
+    detail: "RCON báo isPrime. Đủ điều kiện trước 75%. Slot mutation 4 phải mở trong game.",
+    badge: "Prime",
+  },
+  frail: {
+    title: "Không Prime",
+    detail: "Đã qua 75% và RCON báo chưa Prime (Frail Elder). Đời này không gỡ bằng web.",
+    badge: "Frail",
+  },
+  "adult-unknown": {
+    title: "Đã adult",
+    detail: "Growth ≥ 75% nhưng RCON không gửi isPrime. Mở UI mutation trong game: slot 4 = Prime.",
+    badge: "≥ 75%",
+  },
+};
+
+function renderPrime(snapshot) {
+  const empty = document.getElementById("prime-empty");
+  const card = document.getElementById("prime-card");
+  const prime = snapshot.prime ?? { status: "offline" };
+  const copy = PRIME_COPY[prime.status] ?? PRIME_COPY.offline;
+  if (prime.status === "offline") {
+    empty.hidden = false;
+    card.hidden = true;
+    empty.textContent = state.steamId
+      ? "SteamID này không online. Prime chỉ đọc được khi player đang trong server."
+      : "Nhập SteamID đang online để xem Growth và cờ Prime.";
+    return;
+  }
+  empty.hidden = true;
+  card.hidden = false;
+  document.getElementById("prime-title").textContent = copy.title;
+  document.getElementById("prime-detail").textContent = copy.detail;
+  const badge = document.getElementById("prime-badge");
+  badge.textContent = copy.badge;
+  badge.className = `flags badge-${prime.status === "prime" ? "prime" : prime.status === "frail" ? "frail" : "window"}`;
+  const growthPct = typeof prime.growthPercent === "number" ? prime.growthPercent : 0;
+  document.getElementById("prime-growth-bar").style.width = `${growthPct}%`;
+  document.getElementById("prime-growth-label").textContent =
+    typeof prime.growthPercent === "number" ? `${prime.growthPercent}%` : "—";
+  const mutations = prime.mutations ?? [];
+  document.getElementById("prime-mutations").textContent = mutations.length
+    ? `Mutation: ${mutations.join(", ")}`
+    : "Mutation: RCON chưa gửi slot.";
+}
+
 function renderStash(snapshot) {
   const empty = document.getElementById("stash-empty");
   const card = document.getElementById("stash-card");
@@ -155,6 +218,7 @@ async function refresh() {
     const snapshot = await loadSnapshot();
     renderServer(snapshot);
     renderStats(snapshot.me);
+    renderPrime(snapshot);
     renderMap(snapshot);
     renderStash(snapshot);
   } catch (error) {

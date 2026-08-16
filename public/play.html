@@ -34,6 +34,7 @@
 
     <nav class="tabs" role="tablist">
       <button type="button" class="tab is-active" data-tab="stats">Chỉ số</button>
+      <button type="button" class="tab" data-tab="prime">Prime</button>
       <button type="button" class="tab" data-tab="map">Bản đồ live</button>
       <button type="button" class="tab" data-tab="stash">Kho</button>
     </nav>
@@ -50,6 +51,43 @@
             <p id="dino-flags" class="flags"></p>
           </div>
           <div id="stat-bars" class="bars"></div>
+        </div>
+      </section>
+
+      <section id="tab-prime" class="tab-panel" hidden>
+        <p class="hint tight">
+          Save game trên disk đang mã hóa. Web chỉ đọc RCON:
+          <strong>Growth</strong> và cờ <strong>Prime</strong>. Không có từng ô nhiệm vụ.
+        </p>
+        <p id="prime-empty" class="empty">Nhập SteamID đang online để xem Prime.</p>
+        <div id="prime-card" class="hud prime-hud" hidden>
+          <div class="hud-head">
+            <div>
+              <p class="eyebrow">Trạng thái từ server</p>
+              <h2 id="prime-title">—</h2>
+            </div>
+            <p id="prime-badge" class="flags"></p>
+          </div>
+          <p id="prime-detail" class="hint tight"></p>
+          <div class="stat">
+            <span>Growth</span>
+            <div class="bar stamina"><span id="prime-growth-bar"></span></div>
+            <strong id="prime-growth-label">—</strong>
+          </div>
+          <p id="prime-mutations" class="hint tight"></p>
+          <h3>Hướng dẫn (không phải data server)</h3>
+          <p class="hint tight">Cần khoảng 5 mục trước 75% growth. Tự nhớ; game không gửi checklist.</p>
+          <ul class="prime-guide">
+            <li>Vào Sanctuary</li>
+            <li>Perfect Diet một lần (TAB)</li>
+            <li>Không Temporarily Infertile</li>
+            <li>Không Muscle Spasms</li>
+            <li>2 Migration zones</li>
+            <li>4 Patrol zones</li>
+            <li>Nest, nuôi con tới ~50%</li>
+            <li>Sinh từ trứng</li>
+          </ul>
+          <p class="hint tight">Chốt lúc 75%: UI mutation, slot 4 mở = Prime.</p>
         </div>
       </section>
 

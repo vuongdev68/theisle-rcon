@@ -21,11 +21,15 @@ const toastEl = document.getElementById("toast");
 const modalEl = document.getElementById("modal");
 
 async function api(path, options = {}) {
+  const hasBody = options.body !== undefined;
   const response = await fetch(path, {
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    headers: {
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers ?? {}),
+    },
+    body: hasBody ? JSON.stringify(options.body) : undefined,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -318,7 +322,7 @@ document.getElementById("login-form").addEventListener("submit", async (event) =
 });
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
-  await api("/api/auth/logout", { method: "POST" });
+  await api("/api/auth/logout", { method: "POST", body: {} });
   location.reload();
 });
 

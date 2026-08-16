@@ -5,6 +5,7 @@ import {
   findPlayerBySteamId,
   normalizeSteamId,
   toPlayMarker,
+  toPlayPrime,
 } from "../../src/web/playerView.js";
 
 function player(partial: Partial<Player> & Pick<Player, "id" | "name">): Player {
@@ -64,6 +65,11 @@ describe("buildPlaySnapshot", () => {
       hunger: 0.4,
       thirst: 0.3,
     });
+    expect(snapshot.prime).toMatchObject({
+      status: "adult-unknown",
+      growthPercent: 75,
+      questsTracked: false,
+    });
     expect(snapshot.markers).toHaveLength(2);
     expect(snapshot.markers.find((marker) => marker.me)?.name).toBe("Hunter");
     expect(JSON.stringify(snapshot)).not.toContain("eos-secret");
@@ -83,6 +89,7 @@ describe("buildPlaySnapshot", () => {
       "76561198000000001",
     );
     expect(snapshot.me).toBeNull();
+    expect(snapshot.prime.status).toBe("offline");
     expect(snapshot.inventory.supported).toBe(false);
     expect(snapshot.inventory.stomach).toBeUndefined();
   });
@@ -107,6 +114,17 @@ describe("toPlayMarker", () => {
       y: 2,
       me: true,
     });
+  });
+});
+
+describe("toPlayPrime", () => {
+  it("marks the quest window before 75% growth", () => {
+    expect(toPlayPrime({ steamId: "1", name: "A", growth: 0.4 }).status).toBe("window");
+  });
+
+  it("marks Prime or Frail after 75% when RCON sends isPrime", () => {
+    expect(toPlayPrime({ steamId: "1", name: "A", growth: 0.8, isPrime: true }).status).toBe("prime");
+    expect(toPlayPrime({ steamId: "1", name: "A", growth: 0.8, isPrime: false }).status).toBe("frail");
   });
 });
 

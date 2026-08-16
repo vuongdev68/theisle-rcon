@@ -22,6 +22,7 @@
     "start": "node dist/index.js",
     "web": "node dist/index.js",
     "cli": "node dist/cli/cli.js",
+    "read-db": "tsx src/cli/readPersistence.ts",
     "dev": "tsx src/cli/cli.ts",
     "dev:web": "tsx src/index.ts",
     "test": "vitest run",
