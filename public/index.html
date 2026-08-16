@@ -24,6 +24,7 @@
           <button type="submit">Đăng nhập</button>
           <p id="login-error" class="form-error" hidden></p>
         </form>
+        <p class="play-entry">Bạn là người chơi? <a href="/play.html">Mở cổng người chơi</a> — chỉ số dino, bản đồ live.</p>
       </div>
     </div>
 
@@ -37,10 +38,13 @@
           </div>
         </div>
         <nav>
-          <button data-view="dashboard" class="nav-btn is-active">Tổng quan</button>
-          <button data-view="players" class="nav-btn">Người chơi</button>
-          <button data-view="world" class="nav-btn">Thế giới</button>
-          <button data-view="whitelist" class="nav-btn">Whitelist</button>
+          <button data-view="dashboard" class="nav-btn is-active">Dashboard</button>
+          <button data-view="settings" class="nav-btn">Server Settings</button>
+          <button data-view="performance" class="nav-btn">Performance</button>
+          <button data-view="automation" class="nav-btn">Automation</button>
+          <button data-view="players" class="nav-btn">Administrator</button>
+          <button data-view="world" class="nav-btn">Thế giới live</button>
+          <button data-view="chat" class="nav-btn">Chat Monitor</button>
           <button data-view="console" class="nav-btn">Console</button>
           <button data-view="audit" class="nav-btn">Nhật ký</button>
         </nav>
@@ -78,18 +82,246 @@
             </article>
             <article class="panel">
               <h3>Điều khiển server</h3>
-              <p class="hint">Pause đóng băng map (cả grow). Restart là process <code>theisle</code>, không phải panel web.</p>
+              <p class="hint">Giống Dashboard launcher: SteamCMD validate khi start, nút lớn theo trạng thái, đèn Running/Stopped. Process là systemd <code>theisle</code>.</p>
+              <label class="check-inline"><input id="chk-validate" type="checkbox" /> Validate Files on Start (SteamCMD)</label>
+              <button id="btn-server-action" type="button" class="server-action">Loading…</button>
+              <button id="btn-restart" type="button" class="danger">Restart Server</button>
+              <div class="status-light-row">
+                <span id="status-light" class="status-light is-off"></span>
+                <strong id="status-text">Status: Checking…</strong>
+              </div>
+              <pre id="steam-log" class="code-block compact">SteamCMD: —</pre>
               <div class="btn-row">
                 <button id="btn-pause" type="button" class="secondary">Pause</button>
                 <button id="btn-unpause" type="button" class="secondary">Unpause</button>
                 <button id="btn-queue" type="button" class="secondary">Queue status</button>
-                <button id="btn-restart" type="button" class="danger">Restart theisle</button>
               </div>
               <pre id="queue-status" class="code-block compact">Queue: —</pre>
               <p class="field-label">serverdetails</p>
               <pre id="server-details" class="code-block">Đang tải…</pre>
             </article>
           </div>
+        </section>
+
+        <section id="view-settings" class="view" hidden>
+          <form id="settings-form">
+            <nav class="tabs" data-tabs="settings">
+              <button type="button" class="tab is-active" data-pane="general">General</button>
+              <button type="button" class="tab" data-pane="gameplay">Gameplay</button>
+              <button type="button" class="tab" data-pane="advanced">Advanced</button>
+              <button type="button" class="tab" data-pane="dinos">Dinosaurs &amp; AI</button>
+              <button type="button" class="tab" data-pane="access">Access Control</button>
+              <button type="button" class="tab" data-pane="debug">Debugging</button>
+              <button type="button" class="tab" data-pane="mods">Mods</button>
+            </nav>
+            <div id="pane-general" class="tab-pane">
+              <article class="panel">
+                <h3>General Identity</h3>
+                <div class="form-grid">
+                  <label>Tên server <input data-set="serverName" /></label>
+                  <label>Max players <input data-set="maxPlayers" /></label>
+                  <label>Game port <input data-set="gamePort" /></label>
+                  <label>Queue port <input data-set="queuePort" /></label>
+                  <label class="check-inline"><input data-set="queueEnabled" type="checkbox" /> Queue enabled</label>
+                  <label>Server password <input data-set="serverPassword" /></label>
+                  <label>RCON password <input data-set="rconPassword" /></label>
+                  <label>RCON port <input data-set="rconPort" /></label>
+                  <label class="check-inline"><input data-set="rconEnabled" type="checkbox" /> RCON enabled</label>
+                  <label>Custom launch args <input data-set="customArgs" /></label>
+                </div>
+              </article>
+            </div>
+            <div id="pane-gameplay" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>Gameplay</h3>
+                <div class="form-grid">
+                  <label class="check-inline"><input data-set="humans" type="checkbox" /> Humans</label>
+                  <label class="check-inline"><input data-set="mutations" type="checkbox" /> Mutations</label>
+                  <label class="check-inline"><input data-set="fallDamage" type="checkbox" /> Fall damage</label>
+                  <label class="check-inline"><input data-set="globalChat" type="checkbox" /> Global chat</label>
+                  <label class="check-inline"><input data-set="migration" type="checkbox" /> Migration</label>
+                  <label>Day length (phút) <input data-set="dayLength" /></label>
+                  <label>Night length (phút) <input data-set="nightLength" /></label>
+                  <label>Growth multiplier <input data-set="growthMultiplier" /></label>
+                  <label>Corpse decay <input data-set="corpseDecay" /></label>
+                  <label>Max migration time <input data-set="migrationTime" /></label>
+                </div>
+              </article>
+            </div>
+            <div id="pane-advanced" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>Advanced</h3>
+                <div class="form-grid">
+                  <label class="check-inline"><input data-set="useRegionSpawning" type="checkbox" /> Region spawning</label>
+                  <label class="check-inline"><input data-set="useRegionSpawnCooldown" type="checkbox" /> Region spawn cooldown</label>
+                  <label>Region cooldown (s) <input data-set="regionSpawnCooldownTimeSeconds" /></label>
+                  <label class="check-inline"><input data-set="spawnPlants" type="checkbox" /> Spawn plants</label>
+                  <label>Plant spawn multiplier <input data-set="plantSpawnMultiplier" /></label>
+                  <label class="check-inline"><input data-set="allowRecordingReplay" type="checkbox" /> Allow replay recording</label>
+                  <label class="check-inline"><input data-set="dynamicWeather" type="checkbox" /> Dynamic weather</label>
+                  <label>Min weather interval <input data-set="minWeatherVariationInterval" /></label>
+                  <label>Max weather interval <input data-set="maxWeatherVariationInterval" /></label>
+                  <label>Queue join timeout <input data-set="queueJoinTimeoutSeconds" /></label>
+                  <label>Queue heartbeat interval <input data-set="queueHeartbeatIntervalSeconds" /></label>
+                  <label>Queue heartbeat timeout <input data-set="queueHeartbeatTimeoutSeconds" /></label>
+                  <label>Queue heartbeat max misses <input data-set="queueHeartbeatMaxMisses" /></label>
+                  <label class="check-inline"><input data-set="enableDiets" type="checkbox" /> Diets</label>
+                  <label class="check-inline"><input data-set="enablePatrolZones" type="checkbox" /> Patrol zones</label>
+                  <label class="check-inline"><input data-set="enableMassMigration" type="checkbox" /> Mass migration</label>
+                  <label>Mass migration time <input data-set="massMigrationTime" /></label>
+                  <label>Mass migration disable time <input data-set="massMigrationDisableTime" /></label>
+                  <label>Species migration time <input data-set="speciesMigrationTime" /></label>
+                </div>
+              </article>
+            </div>
+            <div id="pane-dinos" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>AI</h3>
+                <div class="form-grid">
+                  <label class="check-inline"><input data-set="spawnAI" type="checkbox" /> Spawn AI</label>
+                  <label>AI density <input data-set="aiDensity" /></label>
+                  <label>AI spawn interval <input data-set="aiSpawnInterval" /></label>
+                </div>
+                <h3 class="subhead">Allowed dinosaurs</h3>
+                <div id="set-dinos" class="check-grid"></div>
+                <h3 class="subhead">Disallowed AI (tick = cấm spawn)</h3>
+                <div id="set-ai" class="check-grid"></div>
+              </article>
+            </div>
+            <div id="pane-access" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>Access Control</h3>
+                <p class="hint">Ghi vào Game.ini section TIGameStateBase — đúng chỗ game đọc. Live add/remove RCON vẫn ở Thế giới live.</p>
+                <label class="check-inline"><input data-set="whitelist" type="checkbox" /> Whitelist enabled</label>
+                <label>Admin Steam IDs (mỗi dòng một ID) <textarea data-set="adminSteamIds" rows="5"></textarea></label>
+                <label>Whitelist IDs <textarea data-set="whitelistIds" rows="5"></textarea></label>
+                <label>VIP IDs <textarea data-set="vipIds" rows="5"></textarea></label>
+              </article>
+            </div>
+            <div id="pane-debug" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>Engine / The Isle verbose logs</h3>
+                <p class="hint">Ghi vào Engine.ini [Core.Log]. Cần restart game.</p>
+                <div id="set-debug" class="check-grid"></div>
+              </article>
+            </div>
+            <div id="pane-mods" class="tab-pane" hidden>
+              <article class="panel">
+                <h3>Mods (Linux)</h3>
+                <p class="hint">DLL inject của launcher Windows không chạy trên VPS Linux. Dùng script sau restart (tương đương StartServerWithMod.bat / post-restart inject).</p>
+                <label>Mod / inject script path <input data-set="modLoaderPath" placeholder="/opt/theisle/inject.sh" /></label>
+                <label>Mod DLL path (tham khảo) <input data-set="modDllPath" /></label>
+                <label>Mod config dir <input data-set="modConfigDir" /></label>
+                <label class="check-inline"><input data-set="useModBatInjection" type="checkbox" /> Dùng script thay vì injector</label>
+                <label class="check-inline"><input data-set="autoInjectAfterRestart" type="checkbox" /> Auto-run script sau restart</label>
+                <label>Delay (giây) <input data-set="autoInjectDelaySeconds" type="number" /></label>
+              </article>
+            </div>
+            <button type="submit" class="save-all">SAVE ALL SETTINGS</button>
+          </form>
+        </section>
+
+        <section id="view-performance" class="view" hidden>
+          <article class="panel">
+            <h3>Performance</h3>
+            <p class="hint">Tối ưu process Linux (renice / taskset), không phải monitor CPU realtime. Tắt streaming ghi Engine.ini.</p>
+            <label class="check-inline"><input data-set="disableStreaming" type="checkbox" /> Tắt World Partition Streaming (cần ~16GB+ RAM nếu để bật)</label>
+            <label>Process priority
+              <select data-set="processPriority">
+                <option value="Normal">Normal</option>
+                <option value="AboveNormal">Above Normal</option>
+                <option value="High">High</option>
+              </select>
+            </label>
+            <p class="hint tight">Để trống = mọi core. Tick từng core để ghim affinity.</p>
+            <div id="cpu-cores" class="check-grid"></div>
+            <button id="btn-save-perf" type="button">Lưu performance</button>
+          </article>
+        </section>
+
+        <section id="view-automation" class="view" hidden>
+          <nav class="tabs" data-tabs="auto">
+            <button type="button" class="tab is-active" data-pane="stability">Stability</button>
+            <button type="button" class="tab" data-pane="schedules">Schedules &amp; Backups</button>
+            <button type="button" class="tab" data-pane="integrations">Integrations</button>
+          </nav>
+          <div id="pane-stability" class="tab-pane">
+            <article class="panel">
+              <h3>Crash detection</h3>
+              <label class="check-inline"><input data-set="enableCrashDetection" type="checkbox" /> Detect crash</label>
+              <label class="check-inline"><input data-set="autoRestart" type="checkbox" /> Auto-restart</label>
+              <label>Max restart attempts <input data-set="maxRestartAttempts" type="number" min="1" max="10" /></label>
+              <h3 class="subhead">Zombie process</h3>
+              <label class="check-inline"><input data-set="enableZombieCheck" type="checkbox" /> Force-kill nếu treo khi stop</label>
+              <label>Timeout (giây) <input data-set="zombieTimeoutSeconds" type="number" /></label>
+            </article>
+          </div>
+          <div id="pane-schedules" class="tab-pane" hidden>
+            <article class="panel">
+              <h3>Scheduled restarts</h3>
+              <p id="next-restart" class="hint">Next restart: —</p>
+              <label class="check-inline"><input data-set="scheduledRestartEnabled" type="checkbox" /> Enable</label>
+              <label class="check-inline"><input data-set="useFixedRestartTimes" type="checkbox" /> Giờ cố định (HH:mm, cách nhau dấu phẩy)</label>
+              <label>Fixed times <input data-set="fixedRestartTimes" placeholder="04:00,16:00" /></label>
+              <label>Interval (giờ) <input data-set="restartIntervalHours" type="number" /></label>
+              <label>Cảnh báo trước (phút) <input data-set="restartWarningMinutes" type="number" /></label>
+              <label>Restart message <input data-set="restartMessage" /></label>
+              <label class="check-inline"><input data-set="restartScriptEnabled" type="checkbox" /> Chạy script sau restart</label>
+              <label>Script path <input data-set="restartScriptPath" /></label>
+              <label>Script delay (giây) <input data-set="restartScriptDelaySeconds" type="number" /></label>
+              <h3 class="subhead">Maintenance</h3>
+              <label class="check-inline"><input data-set="autoWipeCorpsesEnabled" type="checkbox" /> Auto wipe corpses</label>
+              <label>Wipe interval (phút) <input data-set="wipeCorpsesIntervalMinutes" type="number" /></label>
+              <label>Wipe delay / warning (phút) <input data-set="wipeCorpsesDelayMinutes" type="number" /></label>
+              <label>Wipe warning <input data-set="wipeWarningMessage" /></label>
+              <label>Wipe complete <input data-set="wipeCompleteMessage" /></label>
+              <label class="check-inline"><input data-set="autoRconSaveEnabled" type="checkbox" /> Auto RCON save</label>
+              <label>Save interval (phút) <input data-set="rconSaveIntervalMinutes" type="number" /></label>
+              <h3 class="subhead">Backups</h3>
+              <p id="backup-folder" class="hint">Folder: —</p>
+              <label class="check-inline"><input data-set="autoBackupEnabled" type="checkbox" /> Auto backup Saved/</label>
+              <label>Backup interval (giờ) <input data-set="backupIntervalHours" type="number" /></label>
+              <div class="btn-row">
+                <button id="btn-backup-now" type="button">Backup now</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>File</th><th>Size</th><th></th></tr></thead>
+                  <tbody id="backup-body"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+          <div id="pane-integrations" class="tab-pane" hidden>
+            <article class="panel">
+              <h3>Discord</h3>
+              <label class="check-inline"><input data-set="enableDiscordWebhook" type="checkbox" /> Webhook Start / Stop / Crash</label>
+              <label>Webhook URL <input data-set="discordWebhookUrl" /></label>
+              <label>Discord invite (Game.ini) <input data-set="discordInvite" /></label>
+              <button id="btn-discord-test" type="button" class="secondary">Test webhook</button>
+            </article>
+          </div>
+          <button id="btn-save-auto" type="button" class="save-all">SAVE AUTOMATION</button>
+        </section>
+
+        <section id="view-chat" class="view" hidden>
+          <article class="panel">
+            <h3>Chat Monitor</h3>
+            <p class="hint">Đọc TheIsle.log (LogTheIsleChatData), không gửi chat. Spatial = Local.</p>
+            <label class="check-inline"><input data-set="enableChatMonitor" type="checkbox" /> Enable monitor</label>
+            <label class="check-inline"><input id="chat-global" type="checkbox" checked /> Global</label>
+            <label class="check-inline"><input id="chat-local" type="checkbox" checked /> Local</label>
+            <label class="check-inline"><input id="chat-admin" type="checkbox" checked /> Admin</label>
+            <label>Refresh (giây) <input data-set="chatRefreshInterval" type="number" min="1" max="10" /></label>
+            <label class="check-inline"><input data-set="enableChatWebhook" type="checkbox" /> Discord relay</label>
+            <label>Chat webhook URL <input data-set="chatWebhookUrl" /></label>
+            <div class="btn-row">
+              <button id="btn-chat-pause" type="button" class="secondary">Pause</button>
+              <button id="btn-chat-clear" type="button" class="secondary">Clear</button>
+              <button id="btn-save-chat" type="button">Lưu</button>
+            </div>
+            <pre id="chat-log" class="console"></pre>
+          </article>
         </section>
 
         <section id="view-players" class="view" hidden>
@@ -118,6 +350,23 @@
               </table>
             </div>
           </article>
+          <div class="split" style="margin-top:16px">
+            <article class="panel">
+              <h3>Broadcast</h3>
+              <label class="check-inline"><input data-set="autoBroadcastEnabled" type="checkbox" /> Auto-broadcast theo phút</label>
+              <label>Interval (phút) <input data-set="autoBroadcastIntervalMinutes" type="number" /></label>
+              <label>Auto message <textarea data-set="autoBroadcastMessage" rows="2"></textarea></label>
+              <button id="btn-save-broadcast" type="button" class="secondary">Lưu auto-broadcast</button>
+              <button id="btn-rcon-test" type="button" class="secondary">Test kết nối RCON</button>
+            </article>
+            <article class="panel">
+              <h3>RCON Output</h3>
+              <div class="btn-row">
+                <button id="btn-rcon-clear" type="button" class="secondary">Clear</button>
+              </div>
+              <pre id="rcon-output" class="console" style="height:28vh"></pre>
+            </article>
+          </div>
         </section>
 
         <section id="view-world" class="view" hidden>
@@ -305,5 +554,6 @@
       </div>
     </div>
     <script src="/app.js"></script>
+    <script src="/launcher.js"></script>
   </body>
 </html>

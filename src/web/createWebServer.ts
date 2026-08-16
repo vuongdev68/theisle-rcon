@@ -6,13 +6,20 @@ import rateLimit from "@fastify/rate-limit";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/env.js";
 import type { EvrimaRconClient } from "../rcon/EvrimaRconClient.js";
-import type { Player } from "../rcon/RconTypes.js";
+import type { Player, ServerDetails } from "../rcon/RconTypes.js";
 import type { PlayerService } from "../services/PlayerService.js";
 import type { ServerService } from "../services/ServerService.js";
 import type { AdminService } from "../services/AdminService.js";
 import type { WhitelistService } from "../services/WhitelistService.js";
 import type { MonitoringService } from "../services/MonitoringService.js";
 import type { ServerLogMonitor } from "../process/ServerLogMonitor.js";
+import type { ServerProcessManager } from "../process/ServerProcessManager.js";
+import type { SteamCmdService } from "../process/SteamCmdService.js";
+import type { GameConfigStore } from "../config/gameConfigStore.js";
+import type { AutomationService } from "../services/AutomationService.js";
+import type { BackupService } from "../services/BackupService.js";
+import type { ChatMonitor } from "../services/ChatMonitor.js";
+import type { DiscordWebhookService } from "../services/DiscordWebhook.js";
 import type { WebSession } from "./session.js";
 import { SessionStore, passwordsMatch } from "./session.js";
 import { AuditLog } from "./audit.js";
@@ -28,6 +35,9 @@ import {
   serializeCookie,
 } from "./cookies.js";
 import { sendCaughtError, sendError } from "./httpErrors.js";
+import { buildPlaySnapshot, normalizeSteamId } from "./playerView.js";
+import { registerLauncherRoutes } from "./launcherRoutes.js";
+import { RconOutputLog } from "./rconOutput.js";
 
 export interface WebManager {
   client: EvrimaRconClient;
@@ -37,6 +47,13 @@ export interface WebManager {
   whitelist: WhitelistService;
   monitoring: MonitoringService;
   logMonitor: ServerLogMonitor;
+  processManager: ServerProcessManager;
+  store: GameConfigStore;
+  automation: AutomationService;
+  backups: BackupService;
+  chat: ChatMonitor;
+  discord: DiscordWebhookService;
+  steam: SteamCmdService;
 }
 
 export interface WebServerOptions {
@@ -46,11 +63,14 @@ export interface WebServerOptions {
 }
 
 const SESSION_COOKIE_HEADER = "set-cookie";
+let activeRconOutput: RconOutputLog | undefined;
 
 export async function createWebServer(options: WebServerOptions): Promise<FastifyInstance> {
   const { manager, config, logger } = options;
   const sessions = new SessionStore(config.web.sessionTtlMs);
   const audit = new AuditLog();
+  const rconOutput = new RconOutputLog();
+  activeRconOutput = rconOutput;
   const publicDir = join(dirname(fileURLToPath(import.meta.url)), "../../public");
 
   const app = Fastify({
@@ -71,6 +91,23 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
     }
     (request as FastifyRequest & { session: WebSession }).session = session;
   };
+
+  registerLauncherRoutes(
+    app,
+    {
+      store: manager.store,
+      automation: manager.automation,
+      backups: manager.backups,
+      chat: manager.chat,
+      discord: manager.discord,
+      steam: manager.steam,
+      process: manager.processManager,
+      client: manager.client,
+      rconOutput,
+      audit,
+    },
+    requireAdmin,
+  );
 
   app.post(
     "/api/auth/login",
@@ -500,6 +537,61 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
     return runAdminAction(request, reply, audit, "wipecorpses", async () => manager.admin.wipeCorpses());
   });
 
+  const playRouteLimit = {
+    config: {
+      rateLimit: {
+        max: 40,
+        timeWindow: "1 minute",
+      },
+    },
+  };
+
+  let playCache:
+    | {
+        at: number;
+        players: Player[];
+        details: ServerDetails | undefined;
+        connected: boolean;
+      }
+    | undefined;
+
+  const loadPlayData = async () => {
+    const now = Date.now();
+    if (playCache && now - playCache.at < 5_000) {
+      return playCache;
+    }
+    try {
+      const health = await manager.client.healthCheck();
+      const connected = health.authenticated;
+      const [players, details] = connected
+        ? await Promise.all([
+            manager.players.list(),
+            manager.client.getServerDetails().catch(() => undefined),
+          ])
+        : [[], undefined];
+      playCache = { at: now, players, details, connected };
+      return playCache;
+    } catch {
+      playCache = { at: now, players: [], details: undefined, connected: false };
+      return playCache;
+    }
+  };
+
+  app.get("/api/play/snapshot", playRouteLimit, async (request, reply) => {
+    const query = request.query as { id?: unknown };
+    const rawId = typeof query.id === "string" ? query.id : undefined;
+    if (rawId?.trim() && !normalizeSteamId(rawId)) {
+      sendError(reply, 400, "SteamID không hợp lệ");
+      return;
+    }
+    try {
+      const data = await loadPlayData();
+      return { ok: true, ...buildPlaySnapshot(data, normalizeSteamId(rawId)) };
+    } catch (error) {
+      sendCaughtError(reply, error);
+    }
+  });
+
   app.get("/api/audit", { preHandler: requireAdmin }, async (request) => {
     const query = request.query as { limit?: string };
     const limit = query.limit ? Number(query.limit) : 100;
@@ -559,7 +651,7 @@ export async function startWebServer(options: WebServerOptions): Promise<Fastify
   const app = await createWebServer(options);
   await app.listen({ host: options.config.web.host, port: options.config.web.port });
   options.logger.info(
-    `[WEB] Admin panel http://${options.config.web.host}:${options.config.web.port}`,
+    `[WEB] Admin panel http://${options.config.web.host}:${options.config.web.port} · player portal /play.html`,
   );
   return app;
 }
@@ -597,7 +689,12 @@ async function runAdminAction(
       success: true,
     });
     if (result && typeof result === "object" && "requestId" in result && "body" in result) {
-      return { ok: true, response: toPublicResponse(result as { requestId: number; type: number; body: string }) };
+      const publicResponse = toPublicResponse(result as { requestId: number; type: number; body: string });
+      activeRconOutput?.push(action, publicResponse.body);
+      return { ok: true, response: publicResponse };
+    }
+    if (result !== undefined) {
+      activeRconOutput?.push(action, typeof result === "string" ? result : JSON.stringify(result).slice(0, 4000));
     }
     return { ok: true, result };
   } catch (error) {

@@ -9,6 +9,12 @@ import { WhitelistService } from "./services/WhitelistService.js";
 import { MonitoringService } from "./services/MonitoringService.js";
 import { ServerProcessManager } from "./process/ServerProcessManager.js";
 import { ServerLogMonitor } from "./process/ServerLogMonitor.js";
+import { SteamCmdService } from "./process/SteamCmdService.js";
+import { GameConfigStore } from "./config/gameConfigStore.js";
+import { BackupService } from "./services/BackupService.js";
+import { DiscordWebhookService } from "./services/DiscordWebhook.js";
+import { ChatMonitor } from "./services/ChatMonitor.js";
+import { AutomationService } from "./services/AutomationService.js";
 import { startWebServer } from "./web/createWebServer.js";
 
 export { EvrimaRconClient } from "./rcon/EvrimaRconClient.js";
@@ -42,6 +48,7 @@ export { MonitoringService } from "./services/MonitoringService.js";
 export { PlayerMonitor } from "./services/PlayerMonitor.js";
 export { ServerProcessManager } from "./process/ServerProcessManager.js";
 export { ServerLogMonitor } from "./process/ServerLogMonitor.js";
+export { GameConfigStore } from "./config/gameConfigStore.js";
 export { parsePlayerListResponse, parsePlayerDataResponse, parseServerDetailsResponse } from "./rcon/responseParsers.js";
 export { startWebServer, createWebServer } from "./web/createWebServer.js";
 
@@ -54,6 +61,12 @@ export interface RconManager {
   monitoring: MonitoringService;
   processManager: ServerProcessManager;
   logMonitor: ServerLogMonitor;
+  store: GameConfigStore;
+  steam: SteamCmdService;
+  backups: BackupService;
+  discord: DiscordWebhookService;
+  chat: ChatMonitor;
+  automation: AutomationService;
 }
 
 export function createRconManager(): RconManager {
@@ -82,18 +95,32 @@ export function createRconManager(): RconManager {
   });
   client.attachPlayerMonitor(playerMonitor);
 
-  const processManager = new ServerProcessManager({ unit: config.systemdUnit });
+  const processManager = new ServerProcessManager({ unit: config.systemdUnit, serverDir: config.serverDir });
   const logMonitor = new ServerLogMonitor({ unit: config.systemdUnit });
+  const store = new GameConfigStore(config.serverDir);
+  const steam = new SteamCmdService(config.serverDir, config.steamCmdPath);
+  const backups = new BackupService(config.serverDir);
+  const discord = new DiscordWebhookService();
+  const chat = new ChatMonitor(store.logPath);
+  const server = new ServerService(client, processManager);
+  const admin = new AdminService(client);
+  const automation = new AutomationService(store, processManager, steam, backups, discord, chat, server, admin, logger);
 
   return {
     client,
     players: new PlayerService(client),
-    server: new ServerService(client, processManager),
-    admin: new AdminService(client),
+    server,
+    admin,
     whitelist: new WhitelistService(client),
     monitoring: new MonitoringService(client, playerMonitor, logMonitor),
     processManager,
     logMonitor,
+    store,
+    steam,
+    backups,
+    discord,
+    chat,
+    automation,
   };
 }
 
@@ -126,6 +153,7 @@ async function runDaemon(): Promise<void> {
   let webApp: Awaited<ReturnType<typeof startWebServer>> | undefined;
   if (config.web.enabled) {
     manager.monitoring.startLogMonitor();
+    manager.automation.start();
     if (!config.web.password) {
       logger.error("[WEB] WEB_PASSWORD is empty — admin panel not started");
     } else {
@@ -137,6 +165,7 @@ async function runDaemon(): Promise<void> {
     logger.info(rconLogMessage("Shutting down"));
     manager.monitoring.stopPlayerMonitor();
     manager.monitoring.stopLogMonitor();
+    manager.automation.stop();
     if (webApp) {
       await webApp.close();
     }

@@ -64,6 +64,8 @@ export interface AppConfig {
     pretty: boolean;
   };
   systemdUnit: string;
+  serverDir: string;
+  steamCmdPath: string;
   web: {
     enabled: boolean;
     host: string;
@@ -100,6 +102,8 @@ export function loadConfig(): AppConfig {
       pretty: readBoolean("LOG_PRETTY", true),
     },
     systemdUnit: readString("SYSTEMD_UNIT", "theisle"),
+    serverDir: readString("SERVER_DIR", ""),
+    steamCmdPath: readString("STEAMCMD_PATH", "/usr/games/steamcmd"),
     web: {
       enabled: readBoolean("WEB_ENABLED", true),
       host: readString("WEB_HOST", "127.0.0.1"),

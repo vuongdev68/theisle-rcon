@@ -63,6 +63,20 @@ export function readBooleanField(body: Record<string, unknown>, key: string): bo
   return undefined;
 }
 
+export function readStringArrayField(body: Record<string, unknown>, key: string): string[] | undefined {
+  const value = body[key];
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
+}
+
 export function readNumberField(body: Record<string, unknown>, key: string): number | undefined {
   const value = body[key];
   if (typeof value === "number" && Number.isFinite(value)) {

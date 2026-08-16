@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cổng người chơi · The Isle Evrima</title>
+    <link rel="stylesheet" href="/play.css" />
+  </head>
+  <body>
+    <header class="play-top">
+      <div>
+        <p class="eyebrow">The Isle · Evrima</p>
+        <h1>Cổng người chơi</h1>
+        <p id="server-line" class="lede">Đang kết nối…</p>
+      </div>
+      <a class="admin-link" href="/">Admin</a>
+    </header>
+
+    <form id="id-form" class="id-bar">
+      <label>
+        SteamID 64
+        <input
+          id="steam-id"
+          name="steamid"
+          inputmode="numeric"
+          autocomplete="off"
+          placeholder="7656119…"
+          required
+        />
+      </label>
+      <button type="submit">Xem dino của tôi</button>
+      <p id="id-hint" class="hint">Nhập SteamID để xem máu, dạ dày, stamina. Bản đồ live hiện người đang online.</p>
+    </form>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab is-active" data-tab="stats">Chỉ số</button>
+      <button type="button" class="tab" data-tab="map">Bản đồ live</button>
+      <button type="button" class="tab" data-tab="stash">Kho</button>
+    </nav>
+
+    <main>
+      <section id="tab-stats" class="tab-panel">
+        <p id="stats-empty" class="empty">Nhập SteamID và vào server để xem thông số dino.</p>
+        <div id="stats-card" class="hud" hidden>
+          <div class="hud-head">
+            <div>
+              <p class="eyebrow" id="dino-class">—</p>
+              <h2 id="dino-name">—</h2>
+            </div>
+            <p id="dino-flags" class="flags"></p>
+          </div>
+          <div id="stat-bars" class="bars"></div>
+        </div>
+      </section>
+
+      <section id="tab-map" class="tab-panel" hidden>
+        <p class="hint tight">
+          Chấm vàng là bạn. Chấm khác là người đang online (tên + loài, không hiện máu).
+          Tọa độ lấy từ RCON <code>getplayerdata</code>, không phải bản đồ bản quyền Vulnona.
+        </p>
+        <div class="map-wrap">
+          <div id="live-map" class="live-map" aria-label="Bản đồ live">
+            <svg class="island" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <radialGradient id="water" cx="50%" cy="50%" r="70%">
+                  <stop offset="0%" stop-color="#1a3a42" />
+                  <stop offset="100%" stop-color="#0b1618" />
+                </radialGradient>
+                <linearGradient id="land" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#3d5a38" />
+                  <stop offset="100%" stop-color="#24351f" />
+                </linearGradient>
+              </defs>
+              <rect width="100" height="100" fill="url(#water)" />
+              <path
+                fill="url(#land)"
+                d="M18 42 C22 22 38 14 52 16 C70 18 86 28 84 46 C82 64 72 78 54 84 C34 90 16 74 14 58 C12 50 16 46 18 42 Z"
+              />
+              <path
+                fill="#2e4a32"
+                opacity="0.45"
+                d="M32 40 C38 32 50 30 60 36 C68 42 70 54 62 62 C50 72 36 66 32 54 C30 48 30 44 32 40 Z"
+              />
+            </svg>
+            <div id="map-pins"></div>
+          </div>
+          <aside id="map-list" class="map-list"></aside>
+        </div>
+      </section>
+
+      <section id="tab-stash" class="tab-panel" hidden>
+        <p class="hint">
+          Vanilla Evrima không có túi đồ / kho item qua RCON. Phần này hiện
+          <strong>dạ dày</strong> và <strong>nước</strong> từ chỉ số sống còn.
+        </p>
+        <div id="stash-card" class="stash" hidden>
+          <article>
+            <h3>Dạ dày</h3>
+            <div class="bar"><span id="stash-stomach"></span></div>
+            <p id="stash-stomach-label" class="hint tight">—</p>
+          </article>
+          <article>
+            <h3>Nước</h3>
+            <div class="bar water"><span id="stash-water"></span></div>
+            <p id="stash-water-label" class="hint tight">—</p>
+          </article>
+        </div>
+        <p id="stash-empty" class="empty">Nhập SteamID đang online để xem dạ dày và nước.</p>
+      </section>
+    </main>
+
+    <p id="toast" class="toast" hidden></p>
+    <script src="/play.js"></script>
+  </body>
+</html>

@@ -56,10 +56,13 @@ function setView(name) {
     btn.classList.toggle("is-active", btn.dataset.view === name);
   });
   const titles = {
-    dashboard: ["Tổng quan", "Trạng thái server và thao tác nhanh"],
-    players: ["Người chơi", "Kick, ban, slay, nhắn tin"],
-    world: ["Thế giới", "Công tắc, grow, AI NPC, playables"],
-    whitelist: ["Whitelist", "Chỉ cho SteamID được phép vào"],
+    dashboard: ["Dashboard", "Start / Stop / Restart + đèn trạng thái process"],
+    settings: ["Server Settings", "Sửa Game.ini / Engine.ini — Save All mới ghi file"],
+    performance: ["Performance", "Streaming, nice, CPU affinity"],
+    automation: ["Automation", "Crash, lịch restart, backup, Discord"],
+    players: ["Administrator", "Kick, ban, DM, broadcast, RCON output"],
+    world: ["Thế giới live", "Công tắc RCON khi server đang chạy"],
+    chat: ["Chat Monitor", "Đọc log chat, không gửi chat"],
     console: ["Console", "Log live của process theisle"],
     audit: ["Nhật ký", "Lệnh admin gửi từ panel này"],
   };
@@ -75,6 +78,9 @@ function setView(name) {
   }
   if (name === "audit") {
     void loadAudit();
+  }
+  if (typeof window.onAdminView === "function") {
+    window.onAdminView(name);
   }
 }
 
@@ -346,13 +352,6 @@ document.getElementById("btn-queue").addEventListener("click", async () => {
   const { queue } = await api("/api/server/queue");
   document.getElementById("queue-status").textContent = JSON.stringify(queue, null, 2);
   toast("Đã đọc queue");
-});
-document.getElementById("btn-restart").addEventListener("click", async () => {
-  if (!confirm("Restart process theisle?")) {
-    return;
-  }
-  await api("/api/server/restart", { method: "POST", body: { confirm: true } });
-  toast("Đã yêu cầu restart theisle");
 });
 document.getElementById("btn-refresh-players").addEventListener("click", () => {
   void loadPlayers();
