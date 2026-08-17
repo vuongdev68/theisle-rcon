@@ -25,6 +25,10 @@
     "read-db": "tsx src/cli/readPersistence.ts",
     "dev": "tsx src/cli/cli.ts",
     "dev:web": "tsx src/index.ts",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart evrima-rcon",
+    "pm2:stop": "pm2 stop evrima-rcon",
+    "pm2:logs": "pm2 logs evrima-rcon",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts"
