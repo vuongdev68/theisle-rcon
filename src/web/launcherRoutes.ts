@@ -55,10 +55,23 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   };
 
   app.get("/api/launcher/status", { preHandler: requireAdmin }, async () => {
-    const info = await process.inspect();
-    const config = store.load();
     const rconHost = (process.env.RCON_HOST ?? "127.0.0.1").trim();
     const rconLocal = rconHost === "127.0.0.1" || rconHost === "localhost" || rconHost === "::1";
+    const stopped = { state: "stopped" as const, active: false, installed: true };
+    const info = rconLocal
+      ? await Promise.race([
+          process.inspect(),
+          new Promise<typeof stopped>((resolve) => {
+            setTimeout(() => resolve(stopped), 2000);
+          }),
+        ])
+      : stopped;
+    let validateFiles = false;
+    try {
+      validateFiles = Boolean(store.load().validateFiles);
+    } catch {
+      validateFiles = false;
+    }
     return {
       ok: true,
       process: info,
@@ -69,12 +82,17 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
         authenticated: client.isAuthenticated(),
         localProcess: rconLocal,
       },
-      steam: { available: steam.available, running: steam.running, lastError: steam.lastError, lastOutput: steam.lastOutput.slice(-40) },
+      steam: {
+        available: steam.available,
+        running: steam.running,
+        lastError: steam.lastError,
+        lastOutput: steam.lastOutput.slice(-40),
+      },
       busy: Boolean(controlJob),
       automation: automation.status(),
       serverDir: store.enabled,
       cpuCount: cpus().length,
-      validateFiles: config.validateFiles,
+      validateFiles,
     };
   });
 
