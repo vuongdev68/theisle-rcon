@@ -125,7 +125,7 @@ export function createRconManager(): RconManager {
   };
 }
 
-async function runDaemon(): Promise<void> {
+export async function runDaemon(): Promise<void> {
   const config = loadConfig();
   const manager = createRconManager();
   const logger = createLogger({ level: config.log.level, pretty: config.log.pretty });
@@ -196,8 +196,8 @@ async function runDaemon(): Promise<void> {
 }
 
 function shouldRunDaemon(): boolean {
-  if (process.env.pm_id !== undefined || process.env.pm_exec_path) {
-    return (process.env.pm_exec_path ?? process.argv[1] ?? "").includes("index.js");
+  if (process.env.pm_id !== undefined) {
+    return true;
   }
   const entry = process.argv[1] ?? "";
   return entry.endsWith("index.js") || entry.endsWith("index.ts");

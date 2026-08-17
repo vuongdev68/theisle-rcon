@@ -57,9 +57,18 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   app.get("/api/launcher/status", { preHandler: requireAdmin }, async () => {
     const info = await process.inspect();
     const config = store.load();
+    const rconHost = (process.env.RCON_HOST ?? "127.0.0.1").trim();
+    const rconLocal = rconHost === "127.0.0.1" || rconHost === "localhost" || rconHost === "::1";
     return {
       ok: true,
       process: info,
+      rcon: {
+        host: rconHost,
+        port: Number(process.env.RCON_PORT ?? 8888),
+        connected: client.isConnected(),
+        authenticated: client.isAuthenticated(),
+        localProcess: rconLocal,
+      },
       steam: { available: steam.available, running: steam.running, lastError: steam.lastError, lastOutput: steam.lastOutput.slice(-40) },
       busy: Boolean(controlJob),
       automation: automation.status(),

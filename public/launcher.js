@@ -141,23 +141,49 @@ async function saveSettings(extra = {}) {
 async function refreshLauncher() {
   try {
     const data = await api("/api/launcher/status");
-  const stateName = data.process?.state ?? "stopped";
+  const localState = data.process?.state ?? "stopped";
+  const rconUp = Boolean(data.rcon?.authenticated);
+  const live = rconUp || localState === "running" || localState === "starting";
   const light = document.getElementById("status-light");
   const text = document.getElementById("status-text");
   const action = document.getElementById("btn-server-action");
-  light.className = `status-light ${stateName === "running" ? "is-on" : "is-off"}`;
-  text.textContent = `Status: ${stateName === "running" ? "Running" : stateName === "not_installed" ? "Not Installed" : stateName === "failed" ? "Crashed" : "Stopped"}`;
-  if (stateName === "not_installed") {
+  const restart = document.getElementById("btn-restart");
+  light.className = `status-light ${live ? "is-on" : "is-off"}`;
+  if (rconUp && localState !== "running") {
+    const where = data.rcon?.host ? `${data.rcon.host}:${data.rcon.port}` : "RCON";
+    text.textContent = `Status: Running (${where})`;
+  } else if (localState === "running") {
+    text.textContent = "Status: Running";
+  } else if (localState === "not_installed") {
+    text.textContent = "Status: Not Installed";
+  } else if (localState === "failed") {
+    text.textContent = "Status: Crashed";
+  } else {
+    text.textContent = "Status: Stopped";
+  }
+  const remoteGame = data.rcon && data.rcon.localProcess === false;
+  if (remoteGame) {
+    action.textContent = "Start/Stop local only";
+    action.dataset.mode = "start";
+    action.disabled = true;
+    action.title = "Game chạy trên host RCON khác. Nút này không điều khiển server đó.";
+    restart.disabled = true;
+  } else if (localState === "not_installed") {
     action.textContent = "Install Server";
     action.dataset.mode = "install";
-  } else if (stateName === "running" || stateName === "starting") {
+    action.disabled = Boolean(data.busy);
+    restart.disabled = Boolean(data.busy);
+  } else if (localState === "running" || localState === "starting") {
     action.textContent = data.busy ? "Working…" : "Stop Server";
     action.dataset.mode = "stop";
+    action.disabled = Boolean(data.busy);
+    restart.disabled = Boolean(data.busy);
   } else {
     action.textContent = data.busy ? "Working…" : "Start Server";
     action.dataset.mode = "start";
+    action.disabled = Boolean(data.busy);
+    restart.disabled = Boolean(data.busy);
   }
-  action.disabled = Boolean(data.busy);
   document.getElementById("steam-log").textContent = (data.steam?.lastOutput ?? []).slice(-8).join("\n") || "SteamCMD: —";
   if (data.automation?.nextRestartAt) {
     document.getElementById("next-restart").textContent = `Next restart: ${new Date(data.automation.nextRestartAt).toLocaleString()}`;
