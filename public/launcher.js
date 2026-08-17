@@ -170,10 +170,23 @@ async function refreshLauncher() {
 async function loadBackups() {
   const data = await api("/api/backups");
   document.getElementById("backup-folder").textContent = `Folder: ${data.folder}`;
+  const warn = document.getElementById("backup-warn");
+  if (data.usable) {
+    warn.hidden = true;
+    warn.textContent = "";
+  } else {
+    warn.hidden = false;
+    warn.textContent =
+      "Backup tar Saved/ trên máy chạy web (SERVER_DIR). RCON không copy file. Server game IP khác thì backup này không phải data host mới — dùng backup của panel host, hoặc chạy Node trên cùng máy game.";
+  }
   document.getElementById("backup-body").innerHTML = (data.backups ?? [])
     .map((item) => {
       const mb = (item.size / 1024 / 1024).toFixed(1);
-      return `<tr><td>${escapeHtml(item.name)}</td><td>${mb} MB</td><td><button type="button" class="secondary" data-restore="${escapeHtml(item.name)}">Restore</button></td></tr>`;
+      const name = escapeHtml(item.name);
+      return `<tr><td>${name}</td><td>${mb} MB</td><td class="btn-row">
+        <button type="button" class="secondary" data-restore="${name}">Restore</button>
+        <button type="button" class="danger" data-delete="${name}">Xóa</button>
+      </td></tr>`;
     })
     .join("") || `<tr><td colspan="3">Chưa có backup</td></tr>`;
 }
@@ -268,6 +281,16 @@ document.getElementById("btn-backup-now").addEventListener("click", async () => 
 });
 
 document.getElementById("backup-body").addEventListener("click", async (event) => {
+  const del = event.target.closest("[data-delete]");
+  if (del) {
+    if (!confirm(`Xóa backup ${del.dataset.delete}?`)) {
+      return;
+    }
+    await api("/api/backups/delete", { method: "POST", body: { name: del.dataset.delete } });
+    toast("Đã xóa backup");
+    void loadBackups();
+    return;
+  }
   const btn = event.target.closest("[data-restore]");
   if (!btn) {
     return;

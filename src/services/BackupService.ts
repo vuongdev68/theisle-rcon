@@ -20,6 +20,10 @@ export class BackupService {
     return join(this.serverDir, "TheIsle", "Saved");
   }
 
+  get usable(): boolean {
+    return this.serverDir.trim().length > 0 && existsSync(this.savedDir);
+  }
+
   list(): BackupInfo[] {
     if (!existsSync(this.backupDir)) {
       return [];
@@ -48,10 +52,7 @@ export class BackupService {
   }
 
   async restore(name: string): Promise<void> {
-    const backup = this.list().find((item) => item.name === name);
-    if (!backup) {
-      throw new Error("Backup not found");
-    }
+    const backup = this.requireBackup(name);
     mkdirSync(this.backupDir, { recursive: true });
     if (existsSync(this.savedDir)) {
       const pre = join(this.backupDir, `PreRestore_${new Date().toISOString().replaceAll(":", "-").slice(0, 19)}.tar.gz`);
@@ -60,6 +61,22 @@ export class BackupService {
     }
     mkdirSync(this.savedDir, { recursive: true });
     await runTar(["-xzf", backup.path, "-C", this.savedDir]);
+  }
+
+  delete(name: string): void {
+    const backup = this.requireBackup(name);
+    unlinkSync(backup.path);
+  }
+
+  private requireBackup(name: string): BackupInfo {
+    if (!isSafeBackupName(name)) {
+      throw new Error("Invalid backup name");
+    }
+    const backup = this.list().find((item) => item.name === name);
+    if (!backup) {
+      throw new Error("Backup not found");
+    }
+    return backup;
   }
 
   cleanup(keepCount = 10): void {
@@ -71,6 +88,10 @@ export class BackupService {
       }
     }
   }
+}
+
+function isSafeBackupName(name: string): boolean {
+  return /^SavedBackup_[\w.-]+\.tar\.gz$/.test(name);
 }
 
 function runTar(args: string[]): Promise<void> {

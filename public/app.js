@@ -368,11 +368,12 @@ document.getElementById("players-body").addEventListener("click", async (event) 
   }
   if (button.dataset.act === "slay") {
     const id = button.dataset.id;
-    if (!confirm(`Gửi slay ${id}?\nKhông phải lệnh dev — server có thể bỏ qua.`)) {
+    if (!confirm(`Slay ${id}? Cần đang spawn dino, không phải màn chọn loài.`)) {
       return;
     }
-    await api(`/api/players/${encodeURIComponent(id)}/slay`, { method: "POST", body: {} });
-    toast(`Đã gửi slay ${id} (0x70, có thể bị bỏ qua)`);
+    const data = await api(`/api/players/${encodeURIComponent(id)}/slay`, { method: "POST", body: {} });
+    const body = String(data.response?.body ?? "").trim();
+    toast(body && /false/i.test(body) ? `Slay ${id} → False (chưa spawn / sai SteamID)` : `Slay ${id} ${body || "đã gửi"}`);
     void loadPlayers();
     return;
   }

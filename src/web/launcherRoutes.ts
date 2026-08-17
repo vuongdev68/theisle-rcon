@@ -141,7 +141,13 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.get("/api/backups", { preHandler: requireAdmin }, async () => {
-    return { ok: true, backups: backups.list(), folder: backups.backupDir };
+    return {
+      ok: true,
+      backups: backups.list(),
+      folder: backups.backupDir,
+      savedDir: backups.savedDir,
+      usable: backups.usable,
+    };
   });
 
   app.post("/api/backups", { preHandler: requireAdmin }, async (request, reply) => {
@@ -165,6 +171,22 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
       await backups.restore(name);
       const session = (request as FastifyRequest & { session: WebSession }).session;
       audit.record({ actor: session.username, role: session.role, action: "restore", ip: request.ip, success: true, detail: name });
+      return { ok: true };
+    } catch (error) {
+      sendCaughtError(reply, error);
+    }
+  });
+
+  app.post("/api/backups/delete", { preHandler: requireAdmin }, async (request, reply) => {
+    const name = readStringField(readJsonObject(request.body), "name");
+    if (!name) {
+      sendError(reply, 400, "name is required");
+      return;
+    }
+    try {
+      backups.delete(name);
+      const session = (request as FastifyRequest & { session: WebSession }).session;
+      audit.record({ actor: session.username, role: session.role, action: "delete-backup", ip: request.ip, success: true, detail: name });
       return { ok: true };
     } catch (error) {
       sendCaughtError(reply, error);

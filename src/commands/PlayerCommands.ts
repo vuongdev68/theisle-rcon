@@ -66,11 +66,12 @@ export class PlayerCommands {
   }
 
   /**
-   * Not in the developer opcode table. Sends custom 0x70 with `slay,<playerId>`.
-   * The dedicated server may ignore this packet.
+   * Custom opcode 0x70 runs a console-style line.
+   * Host docs: `slay <SteamID64>` (space). Comma form `slay,id` returns False.
    */
   async slayPlayer(playerId: string, options?: ExecuteOptions): Promise<RconResponse> {
-    const args = evrimaProtocol.joinArguments(["slay", playerId]);
+    const steamId = playerId.trim();
+    const args = `slay ${steamId}`;
     return this.client.executeOpcode(0x70, args, {
       ...options,
       commandName: "slay",

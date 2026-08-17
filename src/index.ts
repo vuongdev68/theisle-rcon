@@ -1,6 +1,7 @@
 import { loadConfig, requireRconPassword } from "./config/env.js";
 import { EvrimaRconClient } from "./rcon/EvrimaRconClient.js";
 import { createLogger, rconLogMessage, setLogger } from "./utils/logger.js";
+import { sleep } from "./utils/retry.js";
 import { PlayerMonitor } from "./services/PlayerMonitor.js";
 import { PlayerService } from "./services/PlayerService.js";
 import { ServerService } from "./services/ServerService.js";
@@ -145,11 +146,6 @@ async function runDaemon(): Promise<void> {
     logger.info(rconLogMessage(`playerLeft ${player.name} ${player.id}`));
   });
 
-  await manager.client.connect();
-
-  if (config.playerMonitor.enabled || config.web.enabled) {
-    manager.monitoring.startPlayerMonitor();
-  }
   let webApp: Awaited<ReturnType<typeof startWebServer>> | undefined;
   if (config.web.enabled) {
     manager.monitoring.startLogMonitor();
@@ -160,6 +156,24 @@ async function runDaemon(): Promise<void> {
       webApp = await startWebServer({ manager, config, logger });
     }
   }
+
+  void (async () => {
+    let attempt = 0;
+    while (!manager.client.isAuthenticated()) {
+      attempt += 1;
+      try {
+        await manager.client.connect();
+        if (config.playerMonitor.enabled || config.web.enabled) {
+          manager.monitoring.startPlayerMonitor();
+        }
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(rconLogMessage(`Connect failed (attempt ${attempt}): ${message}`));
+        await sleep(Math.min(30_000, 2000 * attempt));
+      }
+    }
+  })();
 
   const shutdown = async (): Promise<void> => {
     logger.info(rconLogMessage("Shutting down"));
@@ -181,8 +195,15 @@ async function runDaemon(): Promise<void> {
   });
 }
 
-const isDirectRun = process.argv[1]?.endsWith("index.js") || process.argv[1]?.endsWith("index.ts");
-if (isDirectRun) {
+function shouldRunDaemon(): boolean {
+  if (process.env.pm_id !== undefined || process.env.pm_exec_path) {
+    return (process.env.pm_exec_path ?? process.argv[1] ?? "").includes("index.js");
+  }
+  const entry = process.argv[1] ?? "";
+  return entry.endsWith("index.js") || entry.endsWith("index.ts");
+}
+
+if (shouldRunDaemon()) {
   void runDaemon().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);

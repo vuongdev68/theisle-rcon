@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatPlayableUpdate } from "../../src/commands/PlayableCommands.js";
 import { filterKnownAIClasses, KnownAIClasses } from "../../src/commands/aiClasses.js";
 import { getCommandDefinition, UnsupportedCommands } from "../../src/commands/commandRegistry.js";
+import { PlayerCommands } from "../../src/commands/PlayerCommands.js";
 import { WhitelistCommands } from "../../src/commands/WhitelistCommands.js";
 import { RconUnsupportedCommandError } from "../../src/rcon/RconErrors.js";
 
@@ -63,6 +64,24 @@ describe("updateplayables formatting", () => {
         { className: "Dryosaurus", enabled: false },
       ]),
     ).toBe("Tyrannosaurus:enabled,Dryosaurus:disabled");
+  });
+});
+
+describe("slay via custom 0x70", () => {
+  it("sends slay <SteamID64> with a space, not a comma", async () => {
+    let opcode = 0;
+    let args = "";
+    const commands = new PlayerCommands({
+      execute: async () => ({ requestId: 1, type: 3, body: "" }),
+      executeOpcode: async (code, payload) => {
+        opcode = code;
+        args = payload ?? "";
+        return { requestId: 1, type: 3, body: "True" };
+      },
+    });
+    await commands.slayPlayer("76561198241449436");
+    expect(opcode).toBe(0x70);
+    expect(args).toBe("slay 76561198241449436");
   });
 });
 
