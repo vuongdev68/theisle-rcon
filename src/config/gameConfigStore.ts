@@ -77,18 +77,17 @@ export class GameConfigStore {
 
   load(): ServerConfiguration {
     const config = defaultServerConfiguration([...KnownPlayables], KnownAIClasses.map((item) => item.name));
-    if (!this.enabled) {
-      return config;
-    }
-    const gamePath = this.gameIniPath();
-    if (!existsSync(gamePath)) {
-      this.writeDefaultGameIni();
-    }
-    if (existsSync(gamePath)) {
-      this.applyGameIni(config, readFileSync(gamePath, "utf8"));
-    }
-    if (existsSync(this.engineIniPath())) {
-      this.applyEngineIni(config, readFileSync(this.engineIniPath(), "utf8"));
+    if (this.enabled) {
+      const gamePath = this.gameIniPath();
+      if (!existsSync(gamePath)) {
+        this.writeDefaultGameIni();
+      }
+      if (existsSync(gamePath)) {
+        this.applyGameIni(config, readFileSync(gamePath, "utf8"));
+      }
+      if (existsSync(this.engineIniPath())) {
+        this.applyEngineIni(config, readFileSync(this.engineIniPath(), "utf8"));
+      }
     }
     const settingsFile = existsSync(this.settingsPath())
       ? this.settingsPath()

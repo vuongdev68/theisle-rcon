@@ -66,6 +66,8 @@ export interface AppConfig {
   systemdUnit: string;
   serverDir: string;
   steamCmdPath: string;
+  /** True only when RCON_HOST is loopback — Node and the game share a machine. */
+  localGameProcess: boolean;
   web: {
     enabled: boolean;
     host: string;
@@ -79,10 +81,20 @@ export interface AppConfig {
   };
 }
 
+export function isLocalRconHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
+}
+
+export const REMOTE_GAME_ERROR =
+  "Game is on a remote RCON host. Start/Stop/Restart, Game.ini, SteamCMD, backups, and journalctl only work when Node runs on the same machine as the dedicated server.";
+
 export function loadConfig(): AppConfig {
+  const rconHost = readString("RCON_HOST", "127.0.0.1");
+  const localGameProcess = isLocalRconHost(rconHost);
   return {
     rcon: {
-      host: readString("RCON_HOST", "127.0.0.1"),
+      host: rconHost,
       port: readNumber("RCON_PORT", 8888),
       password: readString("RCON_PASSWORD", ""),
       timeoutMs: readNumber("RCON_TIMEOUT", 5000),
@@ -102,8 +114,9 @@ export function loadConfig(): AppConfig {
       pretty: readBoolean("LOG_PRETTY", true),
     },
     systemdUnit: readString("SYSTEMD_UNIT", "theisle"),
-    serverDir: readString("SERVER_DIR", ""),
+    serverDir: localGameProcess ? readString("SERVER_DIR", "") : "",
     steamCmdPath: readString("STEAMCMD_PATH", "/usr/games/steamcmd"),
+    localGameProcess,
     web: {
       enabled: readBoolean("WEB_ENABLED", true),
       host: readString("WEB_HOST", "127.0.0.1"),

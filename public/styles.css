@@ -15,7 +15,8 @@
 }
 
 * { box-sizing: border-box; }
-[hidden] { display: none !important; }
+body:not(.rcon-remote) .remote-only { display: none !important; }
+body.rcon-remote .local-only { display: none !important; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
 body {
   background-image:

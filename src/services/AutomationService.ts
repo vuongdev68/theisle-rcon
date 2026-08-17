@@ -37,6 +37,8 @@ export class AutomationService {
     private readonly server: ServerService,
     private readonly admin: AdminService,
     private readonly logger: Logger,
+    private readonly localProcess: boolean,
+    private readonly isRconUp: () => boolean,
   ) {}
 
   start(): void {
@@ -78,6 +80,7 @@ export class AutomationService {
   }
 
   async startServer(): Promise<void> {
+    this.requireLocalProcess();
     const config = this.store.load();
     if (config.validateFiles && this.steam.available) {
       await this.steam.installOrValidate(true);
@@ -93,6 +96,7 @@ export class AutomationService {
   }
 
   async stopServer(): Promise<void> {
+    this.requireLocalProcess();
     const config = this.store.load();
     this.markIntentionalStop();
     await this.process.stop();
@@ -109,6 +113,7 @@ export class AutomationService {
   }
 
   async restartServer(reason = "manual"): Promise<void> {
+    this.requireLocalProcess();
     const config = this.store.load();
     if (config.enableDiscordWebhook) {
       void this.discord.restart(config.discordWebhookUrl, config.serverName);
@@ -144,36 +149,48 @@ export class AutomationService {
     }
   }
 
+  private requireLocalProcess(): void {
+    if (!this.localProcess) {
+      throw new Error(
+        "Game is on a remote RCON host. Start/Stop/Restart only work when Node runs on the same machine as the dedicated server.",
+      );
+    }
+  }
+
   private async tick(): Promise<void> {
     const config = this.store.load();
     this.syncSchedule(config);
-    const info = await this.process.inspect();
-    if (info.active && !this.lastActive) {
-      this.startedAt = this.startedAt || Date.now();
-      this.restartAttempts = 0;
-    }
-    if (this.lastActive && !info.active && !this.intentionalStop && config.enableCrashDetection) {
-      const uptime = Date.now() - this.startedAt;
-      this.logger.warn("[AUTO] crash detected");
-      if (config.enableDiscordWebhook) {
-        void this.discord.crash(config.discordWebhookUrl, config.serverName, uptime);
+    let gameUp = this.isRconUp();
+    if (this.localProcess) {
+      const info = await this.process.inspect();
+      gameUp = info.active;
+      if (info.active && !this.lastActive) {
+        this.startedAt = this.startedAt || Date.now();
+        this.restartAttempts = 0;
       }
-      if (config.autoRestart && this.restartAttempts < Math.max(1, Math.min(config.maxRestartAttempts, 10))) {
-        this.restartAttempts += 1;
-        try {
-          await this.startServer();
-        } catch (error) {
-          this.logger.error({ error }, "[AUTO] auto-restart failed");
+      if (this.lastActive && !info.active && !this.intentionalStop && config.enableCrashDetection) {
+        const uptime = Date.now() - this.startedAt;
+        this.logger.warn("[AUTO] crash detected");
+        if (config.enableDiscordWebhook) {
+          void this.discord.crash(config.discordWebhookUrl, config.serverName, uptime);
+        }
+        if (config.autoRestart && this.restartAttempts < Math.max(1, Math.min(config.maxRestartAttempts, 10))) {
+          this.restartAttempts += 1;
+          try {
+            await this.startServer();
+          } catch (error) {
+            this.logger.error({ error }, "[AUTO] auto-restart failed");
+          }
         }
       }
+      if (info.active) {
+        this.intentionalStop = false;
+      }
+      this.lastActive = info.active;
     }
-    if (info.active) {
-      this.intentionalStop = false;
-    }
-    this.lastActive = info.active;
 
     const now = Date.now();
-    if (config.autoBroadcastEnabled && config.autoBroadcastMessage && now >= this.nextBroadcastAt && this.nextBroadcastAt > 0 && info.active) {
+    if (config.autoBroadcastEnabled && config.autoBroadcastMessage && now >= this.nextBroadcastAt && this.nextBroadcastAt > 0 && gameUp) {
       try {
         await this.server.announce(config.autoBroadcastMessage);
       } catch (error) {
@@ -181,7 +198,7 @@ export class AutomationService {
       }
       this.nextBroadcastAt = now + Math.max(1, config.autoBroadcastIntervalMinutes) * 60_000;
     }
-    if (config.autoRconSaveEnabled && now >= this.nextSaveAt && this.nextSaveAt > 0 && info.active) {
+    if (config.autoRconSaveEnabled && now >= this.nextSaveAt && this.nextSaveAt > 0 && gameUp) {
       try {
         await this.server.save();
       } catch (error) {
@@ -189,7 +206,7 @@ export class AutomationService {
       }
       this.nextSaveAt = now + Math.max(1, config.rconSaveIntervalMinutes) * 60_000;
     }
-    if (this.pendingWipeExecuteAt > 0 && now >= this.pendingWipeExecuteAt && info.active) {
+    if (this.pendingWipeExecuteAt > 0 && now >= this.pendingWipeExecuteAt && gameUp) {
       this.pendingWipeExecuteAt = 0;
       try {
         await this.admin.wipeCorpses();
@@ -205,7 +222,7 @@ export class AutomationService {
       now >= this.nextWipeAt &&
       this.nextWipeAt > 0 &&
       this.pendingWipeExecuteAt === 0 &&
-      info.active
+      gameUp
     ) {
       try {
         if (config.wipeCorpsesDelayMinutes > 0) {
@@ -225,7 +242,7 @@ export class AutomationService {
         this.nextWipeAt = Date.now() + Math.max(1, config.wipeCorpsesIntervalMinutes) * 60_000;
       }
     }
-    if (config.autoBackupEnabled && now >= this.nextBackupAt && this.nextBackupAt > 0) {
+    if (this.localProcess && config.autoBackupEnabled && now >= this.nextBackupAt && this.nextBackupAt > 0) {
       try {
         await this.backups.create();
         this.backups.cleanup(10);
@@ -234,10 +251,10 @@ export class AutomationService {
       }
       this.nextBackupAt = Date.now() + Math.max(1, config.backupIntervalHours) * 3_600_000;
     }
-    if (config.scheduledRestartEnabled && this.nextRestartAt > 0) {
+    if (this.localProcess && config.scheduledRestartEnabled && this.nextRestartAt > 0) {
       const remainMin = (this.nextRestartAt - now) / 60_000;
       for (const mark of [config.restartWarningMinutes, 5, 1]) {
-        if (remainMin <= mark && remainMin > mark - 0.4 && !this.warned.has(mark) && info.active) {
+        if (remainMin <= mark && remainMin > mark - 0.4 && !this.warned.has(mark) && gameUp) {
           this.warned.add(mark);
           try {
             await this.server.announce(config.restartMessage.replaceAll("{minutes}", String(mark)));
@@ -255,7 +272,7 @@ export class AutomationService {
         }
       }
     }
-    if (config.enableChatMonitor && now - this.lastChatPoll >= Math.max(1, config.chatRefreshInterval) * 1000) {
+    if (this.localProcess && config.enableChatMonitor && now - this.lastChatPoll >= Math.max(1, config.chatRefreshInterval) * 1000) {
       this.lastChatPoll = now;
       this.chat.poll({ webhook: config.enableChatWebhook });
       if (config.enableChatWebhook) {
@@ -286,9 +303,10 @@ export class AutomationService {
       return;
     }
     this.lastConfigKey = key;
-    this.scheduleRestart(config);
+    this.scheduleRestart(this.localProcess ? config : { ...config, scheduledRestartEnabled: false, autoBackupEnabled: false });
     const now = Date.now();
-    this.nextBackupAt = config.autoBackupEnabled ? now + Math.max(1, config.backupIntervalHours) * 3_600_000 : 0;
+    this.nextBackupAt =
+      this.localProcess && config.autoBackupEnabled ? now + Math.max(1, config.backupIntervalHours) * 3_600_000 : 0;
     this.nextWipeAt = config.autoWipeCorpsesEnabled ? now + Math.max(1, config.wipeCorpsesIntervalMinutes) * 60_000 : 0;
     this.nextSaveAt = config.autoRconSaveEnabled ? now + Math.max(1, config.rconSaveIntervalMinutes) * 60_000 : 0;
     this.nextBroadcastAt = config.autoBroadcastEnabled ? now + Math.max(1, config.autoBroadcastIntervalMinutes) * 60_000 : 0;

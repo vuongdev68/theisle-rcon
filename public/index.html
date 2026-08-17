@@ -11,7 +11,7 @@
       <div class="login-card">
         <p class="eyebrow">The Isle · Evrima</p>
         <h1>Field Station</h1>
-        <p class="lede">Panel quản trị RCON. Chạy trên VPS, không mở port 8888 ra Internet.</p>
+        <p class="lede">Panel RCON tới server game (IP khác). Không mở RCON ra Internet.</p>
         <form id="login-form">
           <label>
             Tên đăng nhập
@@ -40,12 +40,12 @@
         <nav>
           <button data-view="dashboard" class="nav-btn is-active">Dashboard</button>
           <button data-view="settings" class="nav-btn">Server Settings</button>
-          <button data-view="performance" class="nav-btn">Performance</button>
+          <button data-view="performance" class="nav-btn local-only">Performance</button>
           <button data-view="automation" class="nav-btn">Automation</button>
           <button data-view="players" class="nav-btn">Administrator</button>
           <button data-view="world" class="nav-btn">Thế giới live</button>
-          <button data-view="chat" class="nav-btn">Chat Monitor</button>
-          <button data-view="console" class="nav-btn">Console</button>
+          <button data-view="chat" class="nav-btn local-only">Chat Monitor</button>
+          <button data-view="console" class="nav-btn local-only">Console</button>
           <button data-view="audit" class="nav-btn">Nhật ký</button>
         </nav>
         <button id="logout-btn" class="ghost-btn">Đăng xuất</button>
@@ -59,6 +59,7 @@
           </div>
           <div class="status-pills">
             <span id="pill-conn" class="pill">RCON —</span>
+            <span id="pill-rcon-host" class="pill">host —</span>
             <span id="pill-players" class="pill">0 players</span>
             <span id="pill-latency" class="pill">latency —</span>
             <span id="pill-user" class="pill">admin</span>
@@ -82,15 +83,16 @@
             </article>
             <article class="panel">
               <h3>Điều khiển server</h3>
-              <p class="hint">Đèn Running = game trả lời RCON (kể cả host khác). Nút Start/Stop chỉ điều khiển systemd <code>theisle</code> trên máy web — không tắt server thuê.</p>
-              <label class="check-inline"><input id="chk-validate" type="checkbox" /> Validate Files on Start (SteamCMD)</label>
-              <button id="btn-server-action" type="button" class="server-action">—</button>
-              <button id="btn-restart" type="button" class="danger">Restart Server</button>
+              <p class="hint">Đèn Running = game trả lời RCON. Pause / Save / Queue đi qua RCON.</p>
+              <p id="remote-control-hint" class="hint remote-only">Start / Stop / Restart / SteamCMD không điều khiển host thuê — dùng panel của máy game.</p>
+              <label class="check-inline local-only"><input id="chk-validate" type="checkbox" /> Validate Files on Start (SteamCMD)</label>
+              <button id="btn-server-action" type="button" class="server-action local-only">—</button>
+              <button id="btn-restart" type="button" class="danger local-only">Restart Server</button>
               <div class="status-light-row">
                 <span id="status-light" class="status-light is-off"></span>
                 <strong id="status-text">Status: Checking…</strong>
               </div>
-              <pre id="steam-log" class="code-block compact">SteamCMD: —</pre>
+              <pre id="steam-log" class="code-block compact local-only">SteamCMD: —</pre>
               <div class="btn-row">
                 <button id="btn-pause" type="button" class="secondary">Pause</button>
                 <button id="btn-unpause" type="button" class="secondary">Unpause</button>
@@ -104,7 +106,15 @@
         </section>
 
         <section id="view-settings" class="view" hidden>
-          <form id="settings-form">
+          <article id="remote-settings-notice" class="panel remote-only">
+            <h3>Game.ini trên host game</h3>
+            <p class="hint">
+              Panel này chỉ RCON tới <strong id="remote-settings-endpoint">—</strong>.
+              Không ghi Game.ini / Engine.ini trên VPS. Sửa tên server, port, admin list, dino trên panel host.
+              Công tắc live (AI, chat, grow, playables) dùng tab <strong>Thế giới live</strong>.
+            </p>
+          </article>
+          <form id="settings-form" class="local-only">
             <nav class="tabs" data-tabs="settings">
               <button type="button" class="tab is-active" data-pane="general">General</button>
               <button type="button" class="tab" data-pane="gameplay">Gameplay</button>
@@ -246,7 +256,7 @@
             <button type="button" class="tab" data-pane="integrations">Integrations</button>
           </nav>
           <div id="pane-stability" class="tab-pane">
-            <article class="panel">
+            <article class="panel local-only">
               <h3>Crash detection</h3>
               <label class="check-inline"><input data-set="enableCrashDetection" type="checkbox" /> Detect crash</label>
               <label class="check-inline"><input data-set="autoRestart" type="checkbox" /> Auto-restart</label>
@@ -255,9 +265,13 @@
               <label class="check-inline"><input data-set="enableZombieCheck" type="checkbox" /> Force-kill nếu treo khi stop</label>
               <label>Timeout (giây) <input data-set="zombieTimeoutSeconds" type="number" /></label>
             </article>
+            <article class="panel remote-only">
+              <h3>Host RCON</h3>
+              <p class="hint">Crash / auto-restart / zombie process cần systemd trên cùng máy game. Host thuê: dùng panel của họ.</p>
+            </article>
           </div>
           <div id="pane-schedules" class="tab-pane" hidden>
-            <article class="panel">
+            <article class="panel local-only">
               <h3>Scheduled restarts</h3>
               <p id="next-restart" class="hint">Next restart: —</p>
               <label class="check-inline"><input data-set="scheduledRestartEnabled" type="checkbox" /> Enable</label>
@@ -269,7 +283,10 @@
               <label class="check-inline"><input data-set="restartScriptEnabled" type="checkbox" /> Chạy script sau restart</label>
               <label>Script path <input data-set="restartScriptPath" /></label>
               <label>Script delay (giây) <input data-set="restartScriptDelaySeconds" type="number" /></label>
-              <h3 class="subhead">Maintenance</h3>
+            </article>
+            <article class="panel">
+              <h3>Maintenance (RCON)</h3>
+              <p class="hint">Wipe xác và save đi qua RCON tới host game.</p>
               <label class="check-inline"><input data-set="autoWipeCorpsesEnabled" type="checkbox" /> Auto wipe corpses</label>
               <label>Wipe interval (phút) <input data-set="wipeCorpsesIntervalMinutes" type="number" /></label>
               <label>Wipe delay / warning (phút) <input data-set="wipeCorpsesDelayMinutes" type="number" /></label>
@@ -277,7 +294,9 @@
               <label>Wipe complete <input data-set="wipeCompleteMessage" /></label>
               <label class="check-inline"><input data-set="autoRconSaveEnabled" type="checkbox" /> Auto RCON save</label>
               <label>Save interval (phút) <input data-set="rconSaveIntervalMinutes" type="number" /></label>
-              <h3 class="subhead">Backups</h3>
+            </article>
+            <article class="panel local-only">
+              <h3>Backups</h3>
               <p id="backup-folder" class="hint">Folder: —</p>
               <p id="backup-warn" class="hint" hidden></p>
               <label class="check-inline"><input data-set="autoBackupEnabled" type="checkbox" /> Auto backup Saved/</label>
@@ -292,13 +311,18 @@
                 </table>
               </div>
             </article>
+            <article class="panel remote-only">
+              <h3>Backup Saved/</h3>
+              <p class="hint">RCON không copy file. Backup world trên panel host game, không trên VPS web.</p>
+            </article>
           </div>
           <div id="pane-integrations" class="tab-pane" hidden>
             <article class="panel">
               <h3>Discord</h3>
               <label class="check-inline"><input data-set="enableDiscordWebhook" type="checkbox" /> Webhook Start / Stop / Crash</label>
               <label>Webhook URL <input data-set="discordWebhookUrl" /></label>
-              <label>Discord invite (Game.ini) <input data-set="discordInvite" /></label>
+              <p class="hint local-only">Discord invite ghi vào Game.ini khi Node cùng máy game.</p>
+              <label class="local-only">Discord invite (Game.ini) <input data-set="discordInvite" /></label>
               <button id="btn-discord-test" type="button" class="secondary">Test webhook</button>
             </article>
           </div>
@@ -374,7 +398,7 @@
           <div class="world-grid">
             <article class="panel">
               <h3>Công tắc thế giới</h3>
-              <p class="hint">Bật/tắt gửi 0 hoặc 1, rồi đọc lại từ server. Muốn giữ sau restart game thì sửa thêm Game.ini.</p>
+              <p class="hint">Bật/tắt gửi 0 hoặc 1, rồi đọc lại từ server. Muốn giữ sau restart game thì sửa Game.ini trên host game.</p>
               <div class="switch-list">
                 <div class="switch-row">
                   <div class="switch-copy">
@@ -433,7 +457,7 @@
               <p class="hint">
                 Grow Evrima theo <strong>thời gian khi đã spawn</strong>, không nhảy tức thì.
                 <code>1</code> = mặc định (chậm). <code>2</code>–<code>5</code> nhanh hơn. <code>0</code> dừng.
-                Trên ~20 sẽ gãy grow. RCON chỉ sống đến khi restart <code>theisle</code> — ghi <code>GrowthMultiplier</code> vào Game.ini để giữ.
+                Trên ~20 sẽ gãy grow. RCON chỉ sống đến khi restart game trên host — ghi <code>GrowthMultiplier</code> vào Game.ini trên máy game để giữ.
               </p>
               <form id="growth-form" class="inline-form">
                 <label>Hệ số grow (khuyên 2–5) <input id="growth-value" type="number" step="0.1" min="0" value="1" /></label>

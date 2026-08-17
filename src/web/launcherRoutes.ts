@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { cpus } from "node:os";
 import { applySettingsPatch } from "../config/applySettingsPatch.js";
+import { REMOTE_GAME_ERROR } from "../config/env.js";
 import type { GameConfigStore } from "../config/gameConfigStore.js";
 import type { AutomationService } from "../services/AutomationService.js";
 import type { BackupService } from "../services/BackupService.js";
@@ -22,17 +23,29 @@ export interface LauncherDeps {
   chat: ChatMonitor;
   discord: DiscordWebhookService;
   steam: SteamCmdService;
-  process: ServerProcessManager;
+  processManager: ServerProcessManager;
   client: EvrimaRconClient;
   rconOutput: RconOutputLog;
   audit: AuditLog;
+  localGameProcess: boolean;
+  rconHost: string;
+  rconPort: number;
 }
 
 type RequireAdmin = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
 
 export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps, requireAdmin: RequireAdmin): void {
-  const { store, automation, backups, chat, discord, steam, process, client, rconOutput, audit } = deps;
+  const { store, automation, backups, chat, discord, steam, processManager, client, rconOutput, audit, localGameProcess, rconHost, rconPort } =
+    deps;
   let controlJob: Promise<void> | undefined;
+
+  const rejectRemoteProcess = (reply: FastifyReply): boolean => {
+    if (localGameProcess) {
+      return false;
+    }
+    sendError(reply, 400, REMOTE_GAME_ERROR);
+    return true;
+  };
 
   const runJob = (name: string, work: () => Promise<void>): { ok: true; accepted: true } | { error: string } => {
     if (controlJob) {
@@ -55,12 +68,10 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   };
 
   app.get("/api/launcher/status", { preHandler: requireAdmin }, async () => {
-    const rconHost = (process.env.RCON_HOST ?? "127.0.0.1").trim();
-    const rconLocal = rconHost === "127.0.0.1" || rconHost === "localhost" || rconHost === "::1";
     const stopped = { state: "stopped" as const, active: false, installed: true };
-    const info = rconLocal
+    const info = localGameProcess
       ? await Promise.race([
-          process.inspect(),
+          processManager.inspect(),
           new Promise<typeof stopped>((resolve) => {
             setTimeout(() => resolve(stopped), 2000);
           }),
@@ -77,26 +88,29 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
       process: info,
       rcon: {
         host: rconHost,
-        port: Number(process.env.RCON_PORT ?? 8888),
+        port: rconPort,
         connected: client.isConnected(),
         authenticated: client.isAuthenticated(),
-        localProcess: rconLocal,
+        localProcess: localGameProcess,
       },
       steam: {
-        available: steam.available,
+        available: localGameProcess && steam.available,
         running: steam.running,
         lastError: steam.lastError,
-        lastOutput: steam.lastOutput.slice(-40),
+        lastOutput: localGameProcess ? steam.lastOutput.slice(-40) : [],
       },
       busy: Boolean(controlJob),
       automation: automation.status(),
-      serverDir: store.enabled,
+      serverDir: localGameProcess && store.enabled,
       cpuCount: cpus().length,
       validateFiles,
     };
   });
 
   app.post("/api/launcher/start", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     const session = (request as FastifyRequest & { session: WebSession }).session;
     const result = runJob("start", () => automation.startServer());
     if ("error" in result) {
@@ -108,6 +122,9 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/launcher/stop", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     const session = (request as FastifyRequest & { session: WebSession }).session;
     const result = runJob("stop", () => automation.stopServer());
     if ("error" in result) {
@@ -119,6 +136,9 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/launcher/restart", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     const confirm = readBooleanField(readJsonObject(request.body), "confirm");
     if (confirm !== true) {
       sendError(reply, 400, "confirm must be true");
@@ -135,6 +155,9 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/launcher/install", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     if (!steam.available) {
       sendError(reply, 400, "SteamCMD or SERVER_DIR is not configured");
       return;
@@ -152,7 +175,14 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.get("/api/settings", { preHandler: requireAdmin }, async () => {
-    return { ok: true, settings: store.load(), cpuCount: cpus().length, serverDirEnabled: store.enabled };
+    return {
+      ok: true,
+      settings: store.load(),
+      cpuCount: cpus().length,
+      serverDirEnabled: localGameProcess && store.enabled,
+      localProcess: localGameProcess,
+      rcon: { host: rconHost, port: rconPort },
+    };
   });
 
   app.post("/api/settings", { preHandler: requireAdmin }, async (request, reply) => {
@@ -170,14 +200,17 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   app.get("/api/backups", { preHandler: requireAdmin }, async () => {
     return {
       ok: true,
-      backups: backups.list(),
+      backups: localGameProcess ? backups.list() : [],
       folder: backups.backupDir,
       savedDir: backups.savedDir,
-      usable: backups.usable,
+      usable: localGameProcess && backups.usable,
     };
   });
 
   app.post("/api/backups", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     try {
       const backup = await backups.create();
       const session = (request as FastifyRequest & { session: WebSession }).session;
@@ -189,6 +222,9 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/backups/restore", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     const name = readStringField(readJsonObject(request.body), "name");
     if (!name) {
       sendError(reply, 400, "name is required");
@@ -205,6 +241,9 @@ export function registerLauncherRoutes(app: FastifyInstance, deps: LauncherDeps,
   });
 
   app.post("/api/backups/delete", { preHandler: requireAdmin }, async (request, reply) => {
+    if (rejectRemoteProcess(reply)) {
+      return;
+    }
     const name = readStringField(readJsonObject(request.body), "name");
     if (!name) {
       sendError(reply, 400, "name is required");

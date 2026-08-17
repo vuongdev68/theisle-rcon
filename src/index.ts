@@ -103,9 +103,21 @@ export function createRconManager(): RconManager {
   const backups = new BackupService(config.serverDir);
   const discord = new DiscordWebhookService();
   const chat = new ChatMonitor(store.logPath);
-  const server = new ServerService(client, processManager);
+  const server = new ServerService(client, config.localGameProcess ? processManager : undefined);
   const admin = new AdminService(client);
-  const automation = new AutomationService(store, processManager, steam, backups, discord, chat, server, admin, logger);
+  const automation = new AutomationService(
+    store,
+    processManager,
+    steam,
+    backups,
+    discord,
+    chat,
+    server,
+    admin,
+    logger,
+    config.localGameProcess,
+    () => client.isAuthenticated(),
+  );
 
   return {
     client,
@@ -148,7 +160,9 @@ export async function runDaemon(): Promise<void> {
 
   let webApp: Awaited<ReturnType<typeof startWebServer>> | undefined;
   if (config.web.enabled) {
-    manager.monitoring.startLogMonitor();
+    if (config.localGameProcess) {
+      manager.monitoring.startLogMonitor();
+    }
     manager.automation.start();
     if (!config.web.password) {
       logger.error("[WEB] WEB_PASSWORD is empty — admin panel not started");

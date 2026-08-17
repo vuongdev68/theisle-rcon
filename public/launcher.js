@@ -32,7 +32,27 @@ const launcher = {
   settings: null,
   chatPaused: false,
   chatTimer: 0,
+  remote: false,
 };
+
+function applyRemoteMode(remote, host, port) {
+  launcher.remote = Boolean(remote);
+  document.body.classList.toggle("rcon-remote", launcher.remote);
+  const endpoint = host ? `${host}${port ? `:${port}` : ""}` : "RCON";
+  const pill = document.getElementById("pill-rcon-host");
+  if (pill) {
+    pill.textContent = endpoint;
+    pill.dataset.locked = "1";
+  }
+  const notice = document.getElementById("remote-settings-endpoint");
+  if (notice) {
+    notice.textContent = endpoint;
+  }
+  const active = document.querySelector(".nav-btn.is-active");
+  if (launcher.remote && active?.classList.contains("local-only")) {
+    document.querySelector('[data-view="dashboard"]')?.click();
+  }
+}
 
 function setFields(obj) {
   document.querySelectorAll("[data-set]").forEach((el) => {
@@ -121,20 +141,31 @@ function renderLists(settings) {
 async function loadSettings() {
   const data = await api("/api/settings");
   launcher.settings = data.settings;
+  if (data.localProcess === false) {
+    applyRemoteMode(true, data.rcon?.host, data.rcon?.port);
+  }
   setFields(data.settings);
-  renderLists(data.settings);
+  const dinos = document.getElementById("set-dinos");
+  if (dinos) {
+    renderLists(data.settings);
+  }
   const cores = document.getElementById("cpu-cores");
-  const selected = new Set((data.settings.cpuAffinity || "").split(",").filter(Boolean));
-  cores.innerHTML = Array.from({ length: data.cpuCount || 0 }, (_, i) => {
-    return `<label><input type="checkbox" data-core="${i}" ${selected.has(String(i)) ? "checked" : ""} /> Core ${i}</label>`;
-  }).join("");
-  document.getElementById("chk-validate").checked = Boolean(data.settings.validateFiles);
+  if (cores) {
+    const selected = new Set((data.settings.cpuAffinity || "").split(",").filter(Boolean));
+    cores.innerHTML = Array.from({ length: data.cpuCount || 0 }, (_, i) => {
+      return `<label><input type="checkbox" data-core="${i}" ${selected.has(String(i)) ? "checked" : ""} /> Core ${i}</label>`;
+    }).join("");
+  }
+  const validate = document.getElementById("chk-validate");
+  if (validate) {
+    validate.checked = Boolean(data.settings.validateFiles);
+  }
 }
 
 async function saveSettings(extra = {}) {
   const body = { ...collectFields(), ...extra };
   await api("/api/settings", { method: "POST", body });
-  toast("Đã ghi Game.ini / Engine.ini / launcher_settings.ini");
+  toast(launcher.remote ? "Đã lưu setting panel (không ghi Game.ini trên VPS)" : "Đã ghi Game.ini / Engine.ini / launcher_settings.ini");
   await loadSettings();
 }
 
@@ -174,7 +205,9 @@ async function refreshLauncher() {
     }
     const localState = data.process?.state ?? "stopped";
     const rconUp = Boolean(data.rcon?.authenticated);
-    const live = rconUp || localState === "running" || localState === "starting";
+    const remoteGame = data.rcon && data.rcon.localProcess === false;
+    applyRemoteMode(remoteGame, data.rcon?.host, data.rcon?.port);
+    const live = rconUp || (!remoteGame && (localState === "running" || localState === "starting"));
     light.className = `status-light ${live ? "is-on" : "is-off"}`;
     if (rconUp && localState !== "running") {
       const where = data.rcon?.host ? `${data.rcon.host}:${data.rcon.port}` : "RCON";
@@ -188,13 +221,13 @@ async function refreshLauncher() {
     } else {
       text.textContent = "Status: Stopped";
     }
-    const remoteGame = data.rcon && data.rcon.localProcess === false;
     if (remoteGame) {
-      action.textContent = "Host RCON khác";
-      action.dataset.mode = "start";
-      action.disabled = true;
-      action.title = "Game chạy trên host RCON khác. Nút này không điều khiển server đó.";
-      restart.disabled = true;
+      if (action) {
+        action.disabled = true;
+      }
+      if (restart) {
+        restart.disabled = true;
+      }
     } else if (localState === "not_installed") {
       action.textContent = "Install Server";
       action.dataset.mode = "install";
@@ -211,21 +244,31 @@ async function refreshLauncher() {
       action.disabled = Boolean(data.busy);
       restart.disabled = Boolean(data.busy);
     }
-    document.getElementById("steam-log").textContent = (data.steam?.lastOutput ?? []).slice(-8).join("\n") || "SteamCMD: —";
-    if (data.automation?.nextRestartAt) {
-      document.getElementById("next-restart").textContent = `Next restart: ${new Date(data.automation.nextRestartAt).toLocaleString()}`;
+    const steamLog = document.getElementById("steam-log");
+    if (steamLog) {
+      steamLog.textContent = (data.steam?.lastOutput ?? []).slice(-8).join("\n") || "SteamCMD: —";
+    }
+    const nextRestart = document.getElementById("next-restart");
+    if (nextRestart && data.automation?.nextRestartAt) {
+      nextRestart.textContent = `Next restart: ${new Date(data.automation.nextRestartAt).toLocaleString()}`;
     }
   } catch {
     text.textContent = "Status: RCON/API chưa sẵn";
-    action.textContent = "—";
-    action.disabled = true;
+    if (action) {
+      action.textContent = "—";
+      action.disabled = true;
+    }
     light.className = "status-light is-off";
   }
 }
 
 async function loadBackups() {
+  const folder = document.getElementById("backup-folder");
+  if (!folder) {
+    return;
+  }
   const data = await api("/api/backups");
-  document.getElementById("backup-folder").textContent = `Folder: ${data.folder}`;
+  folder.textContent = `Folder: ${data.folder}`;
   const warn = document.getElementById("backup-warn");
   if (data.usable) {
     warn.hidden = true;

@@ -1,12 +1,22 @@
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { GameConfigStore } from "../../src/config/gameConfigStore.js";
+import { isLocalRconHost } from "../../src/config/env.js";
 import { SESSION_SECTION, STATE_SECTION, getConfigValue, updateIniValue } from "../../src/ini/ueIni.js";
 import { parseChatLine } from "../../src/services/ChatMonitor.js";
 import { nextFixedRestart } from "../../src/services/AutomationService.js";
 
+describe("isLocalRconHost", () => {
+  it("treats only loopback as a colocated game process", () => {
+    expect(isLocalRconHost("127.0.0.1")).toBe(true);
+    expect(isLocalRconHost("localhost")).toBe(true);
+    expect(isLocalRconHost("::1")).toBe(true);
+    expect(isLocalRconHost("51.79.187.73")).toBe(false);
+    expect(isLocalRconHost("0.0.0.0")).toBe(false);
+  });
+});
 describe("ueIni", () => {
   it("updates a scalar in the owning section and drops duplicates", () => {
     const lines = [
@@ -66,6 +76,21 @@ describe("GameConfigStore", () => {
     expect(store.load().autoBroadcastEnabled).toBe(true);
     expect(store.load().autoBroadcastMessage).toBe("Test Interval");
     expect(store.load().autoBroadcastIntervalMinutes).toBe(1);
+  });
+
+  it("does not write Game.ini when SERVER_DIR is empty (remote RCON)", () => {
+    const root = mkdtempSync(join(tmpdir(), "isle-remote-"));
+    const store = new GameConfigStore("", root);
+    expect(store.enabled).toBe(false);
+    const config = store.load();
+    config.serverName = "Should Not Touch VPS";
+    config.autoBroadcastEnabled = true;
+    config.autoBroadcastMessage = "Remote ok";
+    store.save(config);
+    expect(existsSync(join(root, "TheIsle"))).toBe(false);
+    expect(readFileSync(store.settingsPath(), "utf8")).toContain("AutoBroadcastMessage=Remote ok");
+    expect(store.load().autoBroadcastEnabled).toBe(true);
+    expect(store.load().autoBroadcastMessage).toBe("Remote ok");
   });
 });
 

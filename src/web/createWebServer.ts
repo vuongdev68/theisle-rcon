@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import fastifyStatic from "@fastify/static";
 import rateLimit from "@fastify/rate-limit";
 import type { Logger } from "pino";
-import type { AppConfig } from "../config/env.js";
+import { REMOTE_GAME_ERROR, type AppConfig } from "../config/env.js";
 import type { EvrimaRconClient } from "../rcon/EvrimaRconClient.js";
 import type { Player, ServerDetails } from "../rcon/RconTypes.js";
 import type { PlayerService } from "../services/PlayerService.js";
@@ -101,10 +101,13 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
       chat: manager.chat,
       discord: manager.discord,
       steam: manager.steam,
-      process: manager.processManager,
+      processManager: manager.processManager,
       client: manager.client,
       rconOutput,
       audit,
+      localGameProcess: config.localGameProcess,
+      rconHost: config.rcon.host,
+      rconPort: config.rcon.port,
     },
     requireAdmin,
   );
@@ -240,6 +243,10 @@ export async function createWebServer(options: WebServerOptions): Promise<Fastif
   });
 
   app.post("/api/server/restart", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!config.localGameProcess) {
+      sendError(reply, 400, REMOTE_GAME_ERROR);
+      return;
+    }
     const session = (request as FastifyRequest & { session: WebSession }).session;
     const confirm = readBooleanField(readJsonObject(request.body), "confirm");
     if (confirm !== true) {

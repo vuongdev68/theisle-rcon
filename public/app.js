@@ -60,10 +60,10 @@ function setView(name) {
     btn.classList.toggle("is-active", btn.dataset.view === name);
   });
   const titles = {
-    dashboard: ["Dashboard", "Start / Stop / Restart + đèn trạng thái process"],
-    settings: ["Server Settings", "Sửa Game.ini / Engine.ini — Save All mới ghi file"],
+    dashboard: ["Dashboard", "RCON live: announce, pause, save, queue"],
+    settings: ["Server Settings", "Game.ini chỉ khi Node cùng máy game — host khác sửa trên panel host"],
     performance: ["Performance", "Streaming, nice, CPU affinity"],
-    automation: ["Automation", "Crash, lịch restart, backup, Discord"],
+    automation: ["Automation", "Wipe/save RCON, Discord; restart/backup chỉ máy local"],
     players: ["Administrator", "Kick, ban, DM, broadcast, RCON output"],
     world: ["Thế giới live", "Công tắc RCON khi server đang chạy"],
     chat: ["Chat Monitor", "Đọc log chat, không gửi chat"],
@@ -121,6 +121,10 @@ async function refreshStatus() {
     const conn = document.getElementById("pill-conn");
     conn.textContent = connected ? "RCON online" : "RCON offline";
     conn.className = `pill ${connected ? "is-on" : "is-off"}`;
+    const hostPill = document.getElementById("pill-rcon-host");
+    if (hostPill && !hostPill.dataset.locked) {
+      hostPill.textContent = connected ? "RCON host" : "host —";
+    }
     document.getElementById("pill-players").textContent = `${details.currentPlayers ?? metrics.playerCount ?? 0} players`;
     document.getElementById("pill-latency").textContent =
       health.latency == null ? "latency —" : `latency ${health.latency}ms`;
